@@ -233,8 +233,8 @@ STORAGES = {
 AWS_S3_FILE_OVERWRITE = False  # Чтобы файлы с одинаковыми именами не перезаписывались
 # AWS_DEFAULT_ACL = 'public-read'  # Делает файлы публичными
 
-STATIC_URL = '/static_django/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static_django')
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Конфигурация статических файлов (опционально, если нужно хранить статические файлы на S3)
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
