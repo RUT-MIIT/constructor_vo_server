@@ -34,11 +34,9 @@ urlpatterns = [
 
     # Пути для загрузки информации этапа
     path('programs/<int:pk>/information/', ProgramInformationView.as_view()),
-
-
-
     # openai
     path('chat/', chat_with_gpt, name='chat_with_gpt'),
+
 ] + router.urls
 
 
