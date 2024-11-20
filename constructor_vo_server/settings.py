@@ -25,6 +25,8 @@ ALLOWED_HOSTS = ['*']
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://cvo-test.emiit.ru",
+    "https://cvo.emiit.ru"
+
 ]
 
 
@@ -48,6 +50,7 @@ INSTALLED_APPS = [
     'storages',
     'users',
     'programs',
+    'ai',
 ]
 
 SITE_ID = 1
@@ -235,6 +238,12 @@ AWS_S3_FILE_OVERWRITE = False  # Чтобы файлы с одинаковыми
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+
+
 
 # Конфигурация статических файлов (опционально, если нужно хранить статические файлы на S3)
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'

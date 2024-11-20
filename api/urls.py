@@ -2,7 +2,7 @@ from django.urls import include, path
 from dj_rest_auth.views import PasswordResetConfirmView
 
 from rest_framework.routers import DefaultRouter
-
+from ai.views import chat_with_gpt
 from programs.views import ProgramViewSet, NsiViewSet, NsiTypeViewSet, MinistryViewSet, EducationLevelListView, \
     EducationDirectionListView, ProgramRoleListView, MyProgramsListView, ProgramInformationView
 
@@ -34,6 +34,11 @@ urlpatterns = [
 
     # Пути для загрузки информации этапа
     path('programs/<int:pk>/information/', ProgramInformationView.as_view()),
+
+
+
+    # openai
+    path('chat/', chat_with_gpt, name='chat_with_gpt'),
 ] + router.urls
 
 

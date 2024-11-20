@@ -150,3 +150,16 @@ class Nsi(models.Model):
     nsiMinistry = models.ForeignKey(Ministry, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(null=True, auto_now_add=True, blank=True)
     updated_at = models.DateTimeField(null=True, auto_now_add=True, blank=True)
+
+
+class Stage(models.Model):
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='stages')
+    name = models.CharField(max_length=255)
+    stage_number = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['program', 'stage_number']  # Сортировка по номеру этапа
+        unique_together = ('program', 'stage_number')  # Уникальность этапа внутри программы
+
+    def __str__(self):
+        return f"{self.program.profile} - {self.name} (Stage {self.stage_number})"

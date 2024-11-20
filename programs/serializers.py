@@ -81,6 +81,8 @@ class ProgramSerializer(serializers.ModelSerializer):
     my_role = serializers.SerializerMethodField()
     form = serializers.CharField(required=True)
 
+    name = serializers.SerializerMethodField()
+
     fgos_file = serializers.DictField(write_only=True, required=False)
     fgos_url = serializers.FileField(source='fgos_file', read_only=True)
 
@@ -89,7 +91,7 @@ class ProgramSerializer(serializers.ModelSerializer):
         model = Program
         fields = (
             'id', 'profile', 'annotation', 'level', 'direction', 'form', 'participants', 'my_role', 'authorId',
-            'fgos_file', 'fgos_url'
+            'fgos_file', 'fgos_url','name'
         )
 
     def convert_fgos_file(self, fgos_data):
@@ -116,7 +118,6 @@ class ProgramSerializer(serializers.ModelSerializer):
             )
 
         # Создаем объект файла
-        print("KEK")
         return ContentFile(base64.b64decode(file_str), name=filename)
 
     def validate(self, attrs):
@@ -140,6 +141,9 @@ class ProgramSerializer(serializers.ModelSerializer):
         if fgos_file_data:
             attrs['fgos_file'] = self.convert_fgos_file(fgos_file_data)
         return attrs
+
+    def get_name(self, obj):
+        return f"{obj.direction_id.code} {obj.direction_id.name} {obj.profile} ({obj.level_id.name})"
 
     def get_my_role(self, obj):
         user_id = self.context['request'].user.id
