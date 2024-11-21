@@ -5,6 +5,7 @@ from rest_framework.routers import DefaultRouter
 from ai.views import chat_with_gpt
 from programs.views import ProgramViewSet, NsiViewSet, NsiTypeViewSet, MinistryViewSet, EducationLevelListView, \
     EducationDirectionListView, ProgramRoleListView, MyProgramsListView, ProgramInformationView
+from users.views import UserListView
 
 router = DefaultRouter()
 
@@ -31,6 +32,8 @@ urlpatterns = [
     path('education_directions/', EducationDirectionListView.as_view()),
     path('program_roles/', ProgramRoleListView.as_view()),
     path('my_programs/', MyProgramsListView.as_view()),
+
+    path('users/', UserListView.as_view()),
 
     # Пути для загрузки информации этапа
     path('programs/<int:pk>/information/', ProgramInformationView.as_view()),

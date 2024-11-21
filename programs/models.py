@@ -152,14 +152,57 @@ class Nsi(models.Model):
     updated_at = models.DateTimeField(null=True, auto_now_add=True, blank=True)
 
 
-class Stage(models.Model):
-    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='stages')
+class StageType(models.Model):
     name = models.CharField(max_length=255)
     stage_number = models.PositiveIntegerField()
-
+    code = models.CharField(max_length=255, null=True, blank=True)
     class Meta:
-        ordering = ['program', 'stage_number']  # Сортировка по номеру этапа
-        unique_together = ('program', 'stage_number')  # Уникальность этапа внутри программы
+        ordering = ['stage_number']  # Сортировка по номеру этапа
 
     def __str__(self):
-        return f"{self.program.profile} - {self.name} (Stage {self.stage_number})"
+        return self.name
+
+class Stage(models.Model):
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='stages')
+    stage_type = models.ForeignKey(StageType, null=True, on_delete=models.CASCADE, related_name='stages')
+    result = models.TextField(null=True, blank=True)
+
+
+class WizardType(models.Model):
+    name = models.CharField(max_length=300)
+    code = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+class StepType(models.Model):
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=255, null=True)
+    wizard_type = models.ForeignKey(WizardType, on_delete=models.CASCADE, related_name='step_types')
+    position = models.PositiveIntegerField()
+
+    def __str__(self):
+        return self.name
+
+
+class Wizard(models.Model):
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='wizards')
+    wizard_type = models.ForeignKey(WizardType, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(null=True, auto_now_add=True, blank=True)
+    def __str__(self):
+        return f"{self.program} - {self.wizard_type}"
+
+
+class Step(models.Model):
+    wizard = models.ForeignKey(Wizard, on_delete=models.CASCADE, related_name='steps')
+    step_type = models.ForeignKey(StepType, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(null=True, auto_now_add=True, blank=True)
+    chunks = models.JSONField(null=True, blank=True)
+    result = models.TextField(null=True, blank=True)
+
+
+class Product (models.Model):
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='products')
+    name = models.CharField(max_length=500)
+    description = models.TextField(null=True, blank=True)
+    nsis = models.ManyToManyField('Nsi', related_name='products')

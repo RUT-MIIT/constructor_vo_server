@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Direction, EducationLevel, ProgramRole, Program, ProgramUser, NsiType, Ministry, Nsi
+from .models import Direction, EducationLevel, ProgramRole, Program, ProgramUser, NsiType, Ministry, Nsi,StageType, Stage, WizardType, StepType, Wizard, Step
 
 @admin.register(Direction)
 class DirectionAdmin(admin.ModelAdmin):
@@ -47,3 +47,48 @@ class NsiAdmin(admin.ModelAdmin):
     search_fields = ('nsiName', 'nsiCode', 'nsiFullName')
     list_filter = ('type', 'nsiYear')
     raw_id_fields = ('author', 'program', 'nsiMinistry')
+
+
+@admin.register(StageType)
+class StageTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'stage_number', 'code')  # Поля, отображаемые в списке
+    ordering = ('stage_number',)  # Сортировка в админке
+    search_fields = ('name', 'code')  # Поля для поиска
+    list_filter = ('code',)  # Боковые фильтры
+
+
+@admin.register(Stage)
+class StageAdmin(admin.ModelAdmin):
+    list_display = ('program', 'stage_type', 'result')  # Поля, отображаемые в списке
+    list_filter = ('program', 'stage_type')  # Боковые фильтры
+    search_fields = ('program__profile', 'stage_type__name')  # Поля для поиска
+
+
+@admin.register(WizardType)
+class WizardTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code')  # Поля, отображаемые в списке
+    search_fields = ('name', 'code')  # Поля для поиска
+
+
+@admin.register(StepType)
+class StepTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'wizard_type', 'position')  # Поля, отображаемые в списке
+    list_filter = ('wizard_type',)  # Боковые фильтры
+    search_fields = ('name', 'code', 'wizard_type__name')  # Поля для поиска
+    ordering = ('wizard_type', 'position')  # Сортировка по мастеру и позиции
+
+
+@admin.register(Wizard)
+class WizardAdmin(admin.ModelAdmin):
+    list_display = ('program', 'wizard_type', 'created_at')  # Поля, отображаемые в списке
+    list_filter = ('program', 'wizard_type')  # Боковые фильтры
+    search_fields = ('program__profile', 'wizard_type__name')  # Поля для поиска
+    date_hierarchy = 'created_at'  # Фильтр по дате создания
+
+
+@admin.register(Step)
+class StepAdmin(admin.ModelAdmin):
+    list_display = ('wizard', 'step_type', 'created_at', 'result')  # Поля, отображаемые в списке
+    list_filter = ('wizard', 'step_type')  # Боковые фильтры
+    search_fields = ('wizard__program__profile', 'step_type__name', 'result')  # Поля для поиска
+    date_hierarchy = 'created_at'  # Фильтр по дате создания

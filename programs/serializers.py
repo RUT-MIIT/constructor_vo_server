@@ -70,7 +70,7 @@ class ProgramUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProgramUser
-        fields = ['id', 'user', 'role', 'program_id']
+        fields = ['user', 'role', 'program_id']
 
 
 class ProgramSerializer(serializers.ModelSerializer):

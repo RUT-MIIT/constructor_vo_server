@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'dj_rest_auth.registration',
     'corsheaders',
     'storages',
+    'drf_yasg',
     'users',
     'programs',
     'ai',
@@ -241,6 +242,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL')
 
 
 
