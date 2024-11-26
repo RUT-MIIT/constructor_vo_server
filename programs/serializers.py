@@ -1,7 +1,7 @@
 import base64
 
 from rest_framework import serializers
-from programs.models import NsiType, Ministry, Nsi
+from programs.models import NsiType, Ministry, Nsi, Product, Step
 from programs.models import EducationLevel, Direction, Program, ProgramRole, \
     ProgramUser
 from django.shortcuts import get_object_or_404
@@ -174,12 +174,25 @@ class ProgramInformationSerializer(serializers.ModelSerializer):
         name = roles.first().role_id.name if roles.exists() else ''
         return name
 
-# class ProgramProductSerializer(serializers.ModelSerializer):
-#     products = ProductSerializer(read_only=True,many=True)
-#     name = serializers.SerializerMethodField()
-#
-#     class Meta:
-#         model = Program
-#         fields = ('id', 'products', 'name')
-#     def get_name(self, obj):
-#         return f"{obj.direction_id.code} {obj.direction_id.name} {obj.profile} ({obj.level_id.name})"
+
+class StepSerializer(serializers.ModelSerializer):
+    step_type_name = serializers.CharField(source='step_type.name', read_only=True)
+    step_type_code = serializers.CharField(source='step_type.code', read_only=True)
+    step_type_position = serializers.IntegerField(source='step_type.position', read_only=True)
+
+    class Meta:
+        model = Step
+        fields = ['id', 'step_type_name', 'step_type_code', 'step_type_position', 'created_at', 'chunks', 'result', 'result_json']
+
+class ProductSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField(read_only=True)
+    program = serializers.PrimaryKeyRelatedField(write_only=True, queryset=Program.objects.all())
+    class Meta:
+        model = Product
+        fields = ('id', 'name', 'position','description','program')
+
+    # def to_representation(self, instance):
+    #     data = super().to_representation(instance)
+    #     data['stages'] = sorted(data['stages'], key=lambda x: x.get('position', 0))
+    #     return data
+

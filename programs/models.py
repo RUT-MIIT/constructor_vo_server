@@ -13,7 +13,9 @@ class Direction(models.Model):
 
     class Meta:
         db_table = 'education_directions'  # This is optional if you want to specify the exact table name
-
+        ordering = ['created_at']
+        verbose_name = "Направление обучения"
+        verbose_name_plural = "Направления обучения"
     def __str__(self):
         return self.name
 
@@ -25,7 +27,9 @@ class EducationLevel(models.Model):
 
     class Meta:
         db_table = 'education_levels'  # This is optional if you want to specify the table name
-
+        ordering = ['created_at']
+        verbose_name = "Уровень образования"
+        verbose_name_plural = "Уровни образования"
     def __str__(self):
         return self.name
 
@@ -40,7 +44,9 @@ class ProgramRole(models.Model):
 
     class Meta:
         db_table = 'program_roles'
-
+        ordering = ['created_at']
+        verbose_name = "Роль"
+        verbose_name_plural = "Роли"
 
 class Program(models.Model):
     FORMS = [
@@ -66,6 +72,8 @@ class Program(models.Model):
     fgos_file = models.FileField(upload_to='fgos_files/', null=True, blank=True)
     class Meta:
         db_table = 'programs'
+        verbose_name = "Программа"
+        verbose_name_plural = "Программы"
 
     def __str__(self):
         return self.profile
@@ -87,7 +95,8 @@ class ProgramUser(models.Model):
 
     class Meta:
         db_table = 'program_users'
-
+        verbose_name = "Роль пользователя"
+        verbose_name_plural = "Роли пользователя"
 
 class NsiType(models.Model):
     id = models.AutoField(primary_key=True)
@@ -119,6 +128,10 @@ class Ministry(models.Model):
     def __str__(self):
         return self.fullname
 
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = "Министерство"
+        verbose_name_plural = "Министерства"
 
 class Nsi(models.Model):
     type = models.ForeignKey(NsiType, on_delete=models.SET_NULL, null=True)
@@ -151,6 +164,10 @@ class Nsi(models.Model):
     created_at = models.DateTimeField(null=True, auto_now_add=True, blank=True)
     updated_at = models.DateTimeField(null=True, auto_now_add=True, blank=True)
 
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = "НСИ"
+        verbose_name_plural = "НСИ"
 
 class StageType(models.Model):
     name = models.CharField(max_length=255)
@@ -158,6 +175,8 @@ class StageType(models.Model):
     code = models.CharField(max_length=255, null=True, blank=True)
     class Meta:
         ordering = ['stage_number']  # Сортировка по номеру этапа
+        verbose_name = "Тип этап разработки"
+        verbose_name_plural = "Типы этапов разработки"
 
     def __str__(self):
         return self.name
@@ -167,6 +186,10 @@ class Stage(models.Model):
     stage_type = models.ForeignKey(StageType, null=True, on_delete=models.CASCADE, related_name='stages')
     result = models.TextField(null=True, blank=True)
 
+    class Meta:
+        ordering = ['program']
+        verbose_name = "Этап разработки программы"
+        verbose_name_plural = "Этапы разработки программ"
 
 class WizardType(models.Model):
     name = models.CharField(max_length=300)
@@ -174,6 +197,10 @@ class WizardType(models.Model):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name = "Тип мастера"
+        verbose_name_plural = "Типы мастеров"
 
 class StepType(models.Model):
     name = models.CharField(max_length=100)
@@ -184,6 +211,10 @@ class StepType(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        ordering = ['position']
+        verbose_name = "Тип шага"
+        verbose_name_plural = "Типы шагов"
 
 class Wizard(models.Model):
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='wizards')
@@ -192,17 +223,32 @@ class Wizard(models.Model):
     def __str__(self):
         return f"{self.program} - {self.wizard_type}"
 
-
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = "Мастер ИИ"
+        verbose_name_plural = "Мастера ИИ"
 class Step(models.Model):
     wizard = models.ForeignKey(Wizard, on_delete=models.CASCADE, related_name='steps')
     step_type = models.ForeignKey(StepType, on_delete=models.CASCADE)
     created_at = models.DateTimeField(null=True, auto_now_add=True, blank=True)
     chunks = models.JSONField(null=True, blank=True)
     result = models.TextField(null=True, blank=True)
+    result_json = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = "Шаг ИИ"
+        verbose_name_plural = "Шаги ИИ"
 
 
 class Product (models.Model):
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=500)
     description = models.TextField(null=True, blank=True)
-    nsis = models.ManyToManyField('Nsi', related_name='products')
+    position = models.IntegerField(null=True, blank=True)
+    nsis = models.ManyToManyField('Nsi', related_name='products', blank=True)
+
+    class Meta:
+        ordering = ['program','position']
+        verbose_name = "Продукт"
+        verbose_name_plural = "Продукты"

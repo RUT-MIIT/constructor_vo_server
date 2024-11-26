@@ -1,17 +1,25 @@
 # views.py
+from django.db import transaction
+from django.db.models import F
+from django.http import JsonResponse
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import NsiType, Ministry, Nsi, Program, EducationLevel, Direction, ProgramRole, ProgramUser
+
+from ai.models import GPTChain
+from .models import NsiType, Ministry, Nsi, Program, EducationLevel, Direction, ProgramRole, ProgramUser, Product, \
+    Wizard, WizardType, StepType, Step
 from .serializers import NsiTypeSerializer, MinistrySerializer, NsiSerializer, EducationLevelSerializer, \
     EducationDirectionSerializer, ProgramRoleSerializer, ProgramInformationSerializer, ProgramSerializer, \
-    ProgramUserSerializer
+    ProgramUserSerializer, ProductSerializer, StepSerializer
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
 from rest_framework import generics
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import action
+from rest_framework.views import APIView
+from django.utils import timezone
 
 
 User = get_user_model()
@@ -229,3 +237,153 @@ class ProgramViewSet(viewsets.ModelViewSet):
     #     serializer = ProductSerializer(products, many=True, context=context)
     #
     #     return Response(serializer.data)
+
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Переопределение метода для фильтрации продуктов по program_id.
+        """
+        program_id = self.kwargs.get('program_id')
+        if program_id is not None:
+            return Product.objects.filter(program_id=program_id).order_by('position')
+        return Product.objects.all()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({
+            'kwargs': self.kwargs
+        })
+        return context
+
+    def create(self, request, *args, **kwargs):
+        product_data = request.data['product']
+        program_id = kwargs.get('program_id')
+        product_data['program'] = program_id
+        queryset = self.get_queryset()
+        position = queryset.count() + 1
+
+        serializer = self.get_serializer(data=product_data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(position=position)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED,
+                        headers=headers)
+
+
+    def partial_update(self, request, pk=None, *args, **kwargs):
+        product = self.get_object()
+        product_data = request.data['product']
+        program_id = kwargs.get('program_id')
+        product_data['program'] = program_id
+        # program_id = kwargs.get('program_id')
+        # product_data['program'] = program_id
+        serializer = self.get_serializer(product, data=product_data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        product = self.get_object()
+        object_id = product.id
+        position_to_update = product.position
+
+        self.perform_destroy(product)
+
+        Product.objects.filter(position__gt=position_to_update).update(
+            position=F('position') - 1)
+
+        return Response({'message': 'Успешно удалено', 'id':object_id}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['patch'], url_path='reorder')
+    def reorder(self, request, program_id=None):
+        products_order = request.data.get('products')
+        with transaction.atomic():  # Используем атомарные транзакции для обеспечения консистентности
+            for position, product_id in enumerate(products_order, start=1):
+                Product.objects.filter(id=product_id).update(position=position)
+
+        products = Product.objects.filter(id__in=products_order).order_by('position')
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class IshDataView(APIView):
+    def get(self, request, program_id):
+        # Получаем объект Program или возвращаем 404
+        program = get_object_or_404(Program, id=program_id)
+
+        # Получаем связанные продукты
+        products = Product.objects.filter(program=program).order_by('position').values('id', 'name', 'description','position')
+
+        # Формируем JSON-ответ
+        return JsonResponse({
+            "message": f"Products for program {program.profile}.",
+            "products": list(products),
+        }, status=200)
+
+
+class IshDataProductsWizardView(APIView):
+    def get(self, request, program_id):
+        # Получаем объект Program или возвращаем 404
+        program = get_object_or_404(Program, id=program_id)
+        wizard_type = get_object_or_404(WizardType, code='ish_data_products')
+        wizard, created = Wizard.objects.get_or_create(
+            program=program,
+            wizard_type=wizard_type,
+            defaults={
+                'created_at': timezone.now()  # Указать, если нужно установить текущую дату и время
+            }
+        )
+
+        chain, chain_created = GPTChain.objects.get_or_create(
+            wizard=wizard,
+            defaults={
+                'created_at': timezone.now()
+            }
+        )
+
+        # Получаем все StepType для текущего WizardType
+        step_types = StepType.objects.filter(wizard_type=wizard_type)
+
+        # Находим первый StepType с position=1
+        first_step_type = step_types.filter(position=1).first()
+
+        # Количество StepType
+        step_type_count = step_types.count()
+
+        step_created = False
+        if created and first_step_type:
+            Step.objects.create(
+                wizard=wizard,
+                step_type=first_step_type,
+                created_at=timezone.now(),
+            )
+            step_created = True
+        # Проверяем, был ли объект создан, или он уже существовал
+        if created:
+            message = "Создан новый Wizard"
+        else:
+            message = "Найден существующий Wizard"
+
+        steps = wizard.steps.all().values(
+            'id', 'step_type__name', 'step_type__code', 'created_at', 'chunks', 'result'
+        )
+
+        # Подготавливаем ответ
+        message = {
+            'wizard_id': wizard.id,
+            'chain_id': chain.id,
+            'wizard_program': str(wizard.program),
+            'wizard_type': str(wizard.wizard_type),
+            'step_type_count': step_type_count,
+            'steps': StepSerializer(wizard.steps.all(), many=True).data,
+        }
+
+        # Возвращаем ответ
+        return JsonResponse(message, json_dumps_params={'ensure_ascii': False})

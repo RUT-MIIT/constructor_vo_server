@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import Direction, EducationLevel, ProgramRole, Program, ProgramUser, NsiType, Ministry, Nsi,StageType, Stage, WizardType, StepType, Wizard, Step
+from .models import Direction, EducationLevel, ProgramRole, Program, ProgramUser, NsiType, Ministry, Nsi, StageType, \
+    Stage, WizardType, StepType, Wizard, Step, Product
+
 
 @admin.register(Direction)
 class DirectionAdmin(admin.ModelAdmin):
@@ -88,7 +90,20 @@ class WizardAdmin(admin.ModelAdmin):
 
 @admin.register(Step)
 class StepAdmin(admin.ModelAdmin):
-    list_display = ('wizard', 'step_type', 'created_at', 'result')  # Поля, отображаемые в списке
+    list_display = ('wizard', 'step_type', 'created_at')  # Поля, отображаемые в списке
     list_filter = ('wizard', 'step_type')  # Боковые фильтры
     search_fields = ('wizard__program__profile', 'step_type__name', 'result')  # Поля для поиска
     date_hierarchy = 'created_at'  # Фильтр по дате создания
+
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ('name', 'program', 'position', 'get_nsis')  # Поля, отображаемые в списке
+    list_filter = ('program',)  # Боковой фильтр
+    search_fields = ('name', 'description', 'program__profile')  # Поля для поиска
+    ordering = ('program', 'position')  # Сортировка
+
+    def get_nsis(self, obj):
+        # Отображаем связанные NSIs в виде строки через запятую
+        return ", ".join([nsi.nsiName for nsi in obj.nsis.all()])
+    get_nsis.short_description = 'NSIs'  # Название колонки в админке

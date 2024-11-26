@@ -12,14 +12,15 @@ class CustomUserAdmin(UserAdmin):
         ('Permissions', {'fields': ('is_staff', 'is_active', 'role', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
-    readonly_fields = ('date_joined',)  # Добавьте date_joined в readonly_fields
+    readonly_fields = ('date_joined',)  # Указываем только для чтения
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
             'fields': ('email', 'password1', 'password2', 'is_staff', 'is_active', 'role')}
         ),
     )
-    search_fields = ('email',)
+    search_fields = ('email', 'first_name', 'last_name')  # Добавляем возможность поиска по именам
     ordering = ('email',)
+
 
 admin.site.register(CustomUser, CustomUserAdmin)
