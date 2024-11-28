@@ -187,12 +187,18 @@ class StepSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     position = serializers.IntegerField(read_only=True)
     program = serializers.PrimaryKeyRelatedField(write_only=True, queryset=Program.objects.all())
+    nsis = serializers.PrimaryKeyRelatedField(many=True, queryset=Nsi.objects.all(), required=False)
     class Meta:
         model = Product
-        fields = ('id', 'name', 'position','description','program')
+        fields = ('id', 'name', 'position','description','program','nsis')
 
     # def to_representation(self, instance):
     #     data = super().to_representation(instance)
     #     data['stages'] = sorted(data['stages'], key=lambda x: x.get('position', 0))
     #     return data
 
+
+
+class SyncNsiWithProductSerializer(serializers.Serializer):
+    product_id = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
+    nsis = serializers.PrimaryKeyRelatedField(queryset=Nsi.objects.all(), many=True)

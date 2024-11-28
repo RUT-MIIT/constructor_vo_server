@@ -11,7 +11,7 @@ from .models import NsiType, Ministry, Nsi, Program, EducationLevel, Direction, 
     Wizard, WizardType, StepType, Step
 from .serializers import NsiTypeSerializer, MinistrySerializer, NsiSerializer, EducationLevelSerializer, \
     EducationDirectionSerializer, ProgramRoleSerializer, ProgramInformationSerializer, ProgramSerializer, \
-    ProgramUserSerializer, ProductSerializer, StepSerializer
+    ProgramUserSerializer, ProductSerializer, StepSerializer, SyncNsiWithProductSerializer
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
 from rest_framework import generics
@@ -250,7 +250,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         """
         program_id = self.kwargs.get('program_id')
         if program_id is not None:
-            return Product.objects.filter(program_id=program_id).order_by('position')
+            return Product.objects.filter(program_id=program_id).order_by('position').prefetch_related('nsis')
         return Product.objects.all()
 
     def get_serializer_context(self):
@@ -319,71 +319,30 @@ class IshDataView(APIView):
         program = get_object_or_404(Program, id=program_id)
 
         # Получаем связанные продукты
-        products = Product.objects.filter(program=program).order_by('position').values('id', 'name', 'description','position')
-
+        products = ProductSerializer(program.products.all(), many=True)
         # Формируем JSON-ответ
         return JsonResponse({
             "message": f"Products for program {program.profile}.",
-            "products": list(products),
+            "products": products.data,
         }, status=200)
 
 
-class IshDataProductsWizardView(APIView):
-    def get(self, request, program_id):
-        # Получаем объект Program или возвращаем 404
-        program = get_object_or_404(Program, id=program_id)
-        wizard_type = get_object_or_404(WizardType, code='ish_data_products')
-        wizard, created = Wizard.objects.get_or_create(
-            program=program,
-            wizard_type=wizard_type,
-            defaults={
-                'created_at': timezone.now()  # Указать, если нужно установить текущую дату и время
-            }
-        )
+class SyncNsiWithProductView(APIView):
+    def post(self, request, product_id):
+        request.data["product_id"] = product_id
+        serializer = SyncNsiWithProductSerializer(data=request.data)
+        if serializer.is_valid():
+            # Получаем данные из сериализатора
+            product = serializer.validated_data['product_id']
+            nsis = serializer.validated_data['nsis']
+            # Синхронизируем Nsi: заменяем все текущие связи на новые
+            product.nsis.set(nsis)
 
-        chain, chain_created = GPTChain.objects.get_or_create(
-            wizard=wizard,
-            defaults={
-                'created_at': timezone.now()
-            }
-        )
+            updated_product = Product.objects.prefetch_related('nsis').get(id=product.id)
+            serializer = ProductSerializer(updated_product)
 
-        # Получаем все StepType для текущего WizardType
-        step_types = StepType.objects.filter(wizard_type=wizard_type)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
-        # Находим первый StepType с position=1
-        first_step_type = step_types.filter(position=1).first()
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Количество StepType
-        step_type_count = step_types.count()
 
-        step_created = False
-        if created and first_step_type:
-            Step.objects.create(
-                wizard=wizard,
-                step_type=first_step_type,
-                created_at=timezone.now(),
-            )
-            step_created = True
-        # Проверяем, был ли объект создан, или он уже существовал
-        if created:
-            message = "Создан новый Wizard"
-        else:
-            message = "Найден существующий Wizard"
-
-        steps = wizard.steps.all().values(
-            'id', 'step_type__name', 'step_type__code', 'created_at', 'chunks', 'result'
-        )
-
-        # Подготавливаем ответ
-        message = {
-            'wizard_id': wizard.id,
-            'chain_id': chain.id,
-            'wizard_program': str(wizard.program),
-            'wizard_type': str(wizard.wizard_type),
-            'step_type_count': step_type_count,
-            'steps': StepSerializer(wizard.steps.all(), many=True).data,
-        }
-
-        # Возвращаем ответ
-        return JsonResponse(message, json_dumps_params={'ensure_ascii': False})

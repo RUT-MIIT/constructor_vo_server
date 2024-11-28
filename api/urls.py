@@ -2,10 +2,11 @@ from django.urls import include, path
 from dj_rest_auth.views import PasswordResetConfirmView
 
 from rest_framework.routers import DefaultRouter
-from ai.views import chat_with_gpt, ish_data_products_step_2, ish_data_products_step_3
+from ai.views import chat_with_gpt, IshDataNsisWizardView
 from programs.views import ProgramViewSet, NsiViewSet, NsiTypeViewSet, MinistryViewSet, EducationLevelListView, \
-    EducationDirectionListView, ProgramRoleListView, MyProgramsListView, ProgramInformationView, IshDataView, ProductViewSet,IshDataProductsWizardView
-from ai.views import ish_data_products_step_1
+    EducationDirectionListView, ProgramRoleListView, MyProgramsListView, ProgramInformationView, IshDataView, \
+    ProductViewSet, SyncNsiWithProductView
+from ai.views import IshDataProductsWizardView, ish_data_products_step_1, ish_data_products_step_2, ish_data_products_step_3, ish_data_products_step_4
 from users.views import UserListView
 
 
@@ -43,12 +44,17 @@ urlpatterns = [
     # openai
     path('chat/', chat_with_gpt, name='chat_with_gpt'),
 
-    # исходные данные
+    # AI - исходные данные - продукты
     path('programs/<int:program_id>/stages/ish_data', IshDataView.as_view()),
     path('programs/<int:program_id>/stages/ish_data/wizards/ish_data_products', IshDataProductsWizardView.as_view()),
     path('programs/<int:program_id>/stages/ish_data/wizards/ish_data_products/steps/ish_data_products_step_1', ish_data_products_step_1.as_view()),
     path('programs/<int:program_id>/stages/ish_data/wizards/ish_data_products/steps/ish_data_products_step_2', ish_data_products_step_2.as_view()),
     path('programs/<int:program_id>/stages/ish_data/wizards/ish_data_products/steps/ish_data_products_step_3', ish_data_products_step_3.as_view()),
+    path('programs/<int:program_id>/stages/ish_data/wizards/ish_data_products/steps/ish_data_products_step_4', ish_data_products_step_4.as_view()),
+    # AI - исходные данные - пНСИ
+    path('programs/<int:program_id>/stages/ish_data/wizards/ish_data_nsis', IshDataNsisWizardView.as_view()),
+
+    path('products/<int:product_id>/sync-nsi/', SyncNsiWithProductView.as_view(), name='sync-nsi-with-product'),
 ] + router.urls
 
 

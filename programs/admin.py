@@ -45,7 +45,7 @@ class MinistryAdmin(admin.ModelAdmin):
 
 @admin.register(Nsi)
 class NsiAdmin(admin.ModelAdmin):
-    list_display = ('type', 'program', 'author', 'nsiName', 'nsiCode', 'nsiYear', 'nsiCity', 'created_at', 'updated_at')
+    list_display = ('id','nsiFullName', 'type', 'program', 'author', 'nsiCode', 'nsiYear', 'nsiCity', 'created_at', 'updated_at')
     search_fields = ('nsiName', 'nsiCode', 'nsiFullName')
     list_filter = ('type', 'nsiYear')
     raw_id_fields = ('author', 'program', 'nsiMinistry')

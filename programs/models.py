@@ -246,7 +246,7 @@ class Product (models.Model):
     name = models.CharField(max_length=500)
     description = models.TextField(null=True, blank=True)
     position = models.IntegerField(null=True, blank=True)
-    nsis = models.ManyToManyField('Nsi', related_name='products', blank=True)
+    nsis = models.ManyToManyField(Nsi, related_name='products', blank=True, null=True)
 
     class Meta:
         ordering = ['program','position']
