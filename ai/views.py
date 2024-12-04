@@ -19,14 +19,16 @@ from programs.serializers import StepSerializer, ProductSerializer
 openai.api_key = settings.OPENAI_API_KEY
 
 
-
 class NsiModel(BaseModel):
     name: str
     year: str
     author: str
+
+
 class ProductModel(BaseModel):
     name: str
     nsis: list[NsiModel]
+
 
 class Res1(BaseModel):
     products: list[ProductModel]
@@ -37,10 +39,10 @@ def get_file_content(file_path):
         file_content = file.read()
     return file_content
 
-def chat_with_gpt(request):
 
+def chat_with_gpt(request):
     client = OpenAI(
-        api_key= settings.OPENAI_API_KEY,
+        api_key=settings.OPENAI_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
     )
 
@@ -73,6 +75,7 @@ def delete_messages(chain, position):
         chain=chain
     ).delete()
     return True
+
 
 def send_message_to_chain(chain, step, messages):
     client = OpenAI(
@@ -127,7 +130,8 @@ def send_message_to_chain_and_parse(chain, step, messages):
     completion = client.beta.chat.completions.parse(
         model="gpt-4o",
         messages=messages,
-        response_format=Res1
+        response_format=Res1,
+        timeout=60
     )
     result_json = json.loads(completion.choices[0].message.content)
 
@@ -140,7 +144,8 @@ def send_message_to_chain_and_parse(chain, step, messages):
 
     return result_json
 
-def get_or_create_step(wizard,step_type,result,is_json):
+
+def get_or_create_step(wizard, step_type, result, is_json):
     step, created = Step.objects.get_or_create(
         wizard=wizard,
         step_type=step_type,
@@ -152,12 +157,14 @@ def get_or_create_step(wizard,step_type,result,is_json):
     )
     return step
 
-def delete_post_steps(wizard,step_type):
+
+def delete_post_steps(wizard, step_type):
     Step.objects.filter(
         wizard=wizard,
         step_type__position__gte=step_type.position
     ).delete()
     return True
+
 
 class IshDataProductsWizardView(APIView):
     def get(self, request, program_id):
@@ -195,16 +202,6 @@ class IshDataProductsWizardView(APIView):
                 step_type=first_step_type,
                 created_at=timezone.now(),
             )
-            step_created = True
-        # Проверяем, был ли объект создан, или он уже существовал
-        if created:
-            message = "Создан новый Wizard"
-        else:
-            message = "Найден существующий Wizard"
-
-        steps = wizard.steps.all().values(
-            'id', 'step_type__name', 'step_type__code', 'created_at', 'chunks', 'result'
-        )
 
         # Подготавливаем ответ
         message = {
@@ -218,6 +215,7 @@ class IshDataProductsWizardView(APIView):
 
         # Возвращаем ответ
         return JsonResponse(message, json_dumps_params={'ensure_ascii': False})
+
 
 class ish_data_products_step_1(APIView):
     def post(self, request, program_id):
@@ -249,16 +247,17 @@ class ish_data_products_step_1(APIView):
             {"role": "user", "content": mes3},
         ]
         delete_messages(chain, step_position)
-        res = send_message_to_chain(chain,step, messages)
+        res = send_message_to_chain(chain, step, messages)
 
-        next_step_type = step_types.filter(position=step_position+1).first()
+        next_step_type = step_types.filter(position=step_position + 1).first()
         delete_post_steps(wizard, next_step_type)
-        get_or_create_step(wizard,next_step_type,res, False)
+        get_or_create_step(wizard, next_step_type, res, False)
 
         return JsonResponse(
             {"steps": StepSerializer(wizard.steps.all(), many=True).data},
             json_dumps_params={'ensure_ascii': False}
         )
+
 
 class ish_data_products_step_2(APIView):
     def post(self, request, program_id):
@@ -271,9 +270,9 @@ class ish_data_products_step_2(APIView):
         step_position = 2
         step = get_object_or_404(Step, wizard=wizard, step_type__position=step_position)
 
-        next_step_type = step_types.filter(position=step_position+1).first()
+        next_step_type = step_types.filter(position=step_position + 1).first()
         delete_post_steps(wizard, next_step_type)
-        get_or_create_step(wizard,next_step_type, None, False)
+        get_or_create_step(wizard, next_step_type, None, False)
 
         return JsonResponse(
             {
@@ -281,6 +280,7 @@ class ish_data_products_step_2(APIView):
             },
             json_dumps_params={'ensure_ascii': False}
         )
+
 
 class ish_data_products_step_3(APIView):
     def post(self, request, program_id):
@@ -295,8 +295,6 @@ class ish_data_products_step_3(APIView):
         # step.chunks = request.data
         # step.save()
 
-
-
         mes4 = get_file_content("ai/samples/1-1-1-4.txt")
 
         messages = [
@@ -305,7 +303,7 @@ class ish_data_products_step_3(APIView):
         delete_messages(chain, step_position)
         res = send_message_to_chain_and_parse(chain, step, messages)
         print("KEK2")
-        next_step_type = step_types.filter(position=step_position+1).first()
+        next_step_type = step_types.filter(position=step_position + 1).first()
         delete_post_steps(wizard, next_step_type)
         get_or_create_step(wizard, next_step_type, res, True)
 
@@ -315,6 +313,7 @@ class ish_data_products_step_3(APIView):
             },
             json_dumps_params={'ensure_ascii': False}
         )
+
 
 class ish_data_products_step_4(APIView):
     def post(self, request, program_id):
@@ -343,7 +342,7 @@ class ish_data_products_step_4(APIView):
             nsis_data = product_data.pop('nsis', [])
             product = Product.objects.create(
                 program=program,
-                position=index+1,
+                position=index + 1,
                 name=product_data['name'],
             )
             for nsi_data in nsis_data:
@@ -364,60 +363,5 @@ class ish_data_products_step_4(APIView):
 
 class IshDataNsisWizardView(APIView):
     def get(self, request, program_id):
-        # Получаем объект Program или возвращаем 404
-        program = get_object_or_404(Program, id=program_id)
-        wizard_type = get_object_or_404(WizardType, code='ish_data_products')
-        wizard, created = Wizard.objects.get_or_create(
-            program=program,
-            wizard_type=wizard_type,
-            defaults={
-                'created_at': timezone.now()  # Указать, если нужно установить текущую дату и время
-            }
-        )
 
-        chain, chain_created = GPTChain.objects.get_or_create(
-            wizard=wizard,
-            defaults={
-                'created_at': timezone.now()
-            }
-        )
-
-        # Получаем все StepType для текущего WizardType
-        step_types = StepType.objects.filter(wizard_type=wizard_type)
-
-        # Находим первый StepType с position=1
-        first_step_type = step_types.filter(position=1).first()
-
-        # Количество StepType
-        step_type_count = step_types.count()
-
-        step_created = False
-        if created and first_step_type:
-            Step.objects.create(
-                wizard=wizard,
-                step_type=first_step_type,
-                created_at=timezone.now(),
-            )
-            step_created = True
-        # Проверяем, был ли объект создан, или он уже существовал
-        if created:
-            message = "Создан новый Wizard"
-        else:
-            message = "Найден существующий Wizard"
-
-        steps = wizard.steps.all().values(
-            'id', 'step_type__name', 'step_type__code', 'created_at', 'chunks', 'result'
-        )
-
-        # Подготавливаем ответ
-        message = {
-            'wizard_id': wizard.id,
-            'chain_id': chain.id,
-            'wizard_program': str(wizard.program),
-            'wizard_type': str(wizard.wizard_type),
-            'step_type_count': step_type_count,
-            'steps': StepSerializer(wizard.steps.all(), many=True).data,
-        }
-
-        # Возвращаем ответ
-        return JsonResponse(message, json_dumps_params={'ensure_ascii': False})
+        return JsonResponse([], json_dumps_params={'ensure_ascii': False})

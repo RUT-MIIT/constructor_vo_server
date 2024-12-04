@@ -1,14 +1,15 @@
 import base64
 
-from rest_framework import serializers
-from programs.models import NsiType, Ministry, Nsi, Product, Step
-from programs.models import EducationLevel, Direction, Program, ProgramRole, \
-    ProgramUser
-from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
-from users.serializers import UserShortSerializer
 from django.core.files.base import ContentFile
-from drf_extra_fields.fields import Base64FileField
+from django.shortcuts import get_object_or_404
+from rest_framework import serializers
+
+from programs.models import EducationLevel, Direction, Program, ProgramRole, \
+    ProgramUser, MultiplicityType, Competence, Discipline
+from programs.models import NsiType, Ministry, Nsi, Product, Step, LifeStage, Process
+from users.serializers import UserShortSerializer
+
 User = get_user_model()
 
 
@@ -74,7 +75,7 @@ class ProgramUserSerializer(serializers.ModelSerializer):
 
 
 class ProgramSerializer(serializers.ModelSerializer):
-    direction = EducationDirectionSerializer(source='direction_id',read_only=True)
+    direction = EducationDirectionSerializer(source='direction_id', read_only=True)
     level = EducationLevelSerializer(source='level_id', read_only=True)
     participants = ProgramUserSerializer(many=True, read_only=True)
     authorId = serializers.IntegerField(source='author_id', read_only=True)
@@ -86,12 +87,11 @@ class ProgramSerializer(serializers.ModelSerializer):
     fgos_file = serializers.DictField(write_only=True, required=False)
     fgos_url = serializers.FileField(source='fgos_file', read_only=True)
 
-
     class Meta:
         model = Program
         fields = (
             'id', 'profile', 'annotation', 'level', 'direction', 'form', 'participants', 'my_role', 'authorId',
-            'fgos_file', 'fgos_url','name'
+            'fgos_file', 'fgos_url', 'name'
         )
 
     def convert_fgos_file(self, fgos_data):
@@ -111,7 +111,7 @@ class ProgramSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Неправильный формат строки Base64.")
         # Проверяем и получаем расширение файла
         ext = filename.split('.')[-1]
-        allowed_extensions = ['txt', 'pdf', 'jpg', 'png','docx']  # Допустимые форматы
+        allowed_extensions = ['txt', 'pdf', 'jpg', 'png', 'docx']  # Допустимые форматы
         if ext.lower() not in allowed_extensions:
             raise serializers.ValidationError(
                 f"Недопустимое расширение файла: {ext}. Допустимые форматы: {', '.join(allowed_extensions)}"
@@ -151,6 +151,7 @@ class ProgramSerializer(serializers.ModelSerializer):
         name = roles.first().role_id.name if roles.exists() else ''
         return name
 
+
 class ProgramInformationSerializer(serializers.ModelSerializer):
     participants = ProgramUserSerializer(many=True, read_only=True)
     level = EducationLevelSerializer(source='level_id')
@@ -163,7 +164,8 @@ class ProgramInformationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Program
         fields = (
-        'id', 'profile', 'form', 'annotation', 'participants', 'direction', 'level', 'name', 'authorId', 'my_role','fgos_url')
+            'id', 'profile', 'form', 'annotation', 'participants', 'direction', 'level', 'name', 'authorId', 'my_role',
+            'fgos_url')
 
     def get_name(self, obj):
         return f"{obj.direction_id.code} {obj.direction_id.name} {obj.profile} ({obj.level_id.name})"
@@ -182,23 +184,86 @@ class StepSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Step
-        fields = ['id', 'step_type_name', 'step_type_code', 'step_type_position', 'created_at', 'chunks', 'result', 'result_json']
+        fields = ['id', 'step_type_name', 'step_type_code', 'step_type_position', 'created_at', 'chunks', 'result',
+                  'result_json']
+
 
 class ProductSerializer(serializers.ModelSerializer):
     position = serializers.IntegerField(read_only=True)
     program = serializers.PrimaryKeyRelatedField(write_only=True, queryset=Program.objects.all())
     nsis = serializers.PrimaryKeyRelatedField(many=True, queryset=Nsi.objects.all(), required=False)
+
     class Meta:
         model = Product
-        fields = ('id', 'name', 'position','description','program','nsis')
-
-    # def to_representation(self, instance):
-    #     data = super().to_representation(instance)
-    #     data['stages'] = sorted(data['stages'], key=lambda x: x.get('position', 0))
-    #     return data
+        fields = ('id', 'name', 'position', 'description', 'program', 'nsis')
 
 
+
+class ProcessRDSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField(read_only=True)
+    product = serializers.IntegerField(read_only=True, source='stage.product.id')
+    nsis = serializers.PrimaryKeyRelatedField(many=True, queryset=Nsi.objects.all(), required=False)
+
+    class Meta:
+        model = Process
+        fields = ('id', 'name', 'stage', 'position', 'product', 'description', 'result','nsis')
+
+
+class LifeStageRDSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField(read_only=True)
+    processes = ProcessRDSerializer(many=True, read_only=True)
+    nsis = serializers.PrimaryKeyRelatedField(many=True, queryset=Nsi.objects.all(), required=False)
+
+    class Meta:
+        model = LifeStage
+        fields = ('id', 'name', 'product', 'position', 'description', 'processes','nsis')
+
+
+class ProductRDSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField(read_only=True)
+    program = serializers.PrimaryKeyRelatedField(write_only=True, queryset=Program.objects.all())
+    stages = LifeStageRDSerializer(many=True, read_only=True)
+    nsis = serializers.PrimaryKeyRelatedField(many=True, queryset=Nsi.objects.all(), required=False)
+
+    class Meta:
+        model = Product
+        fields = ('id', 'name', 'position', 'description', 'program', 'stages', 'nsis')
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['stages'] = sorted(data['stages'], key=lambda x: x.get('position', 0))
+        return data
 
 class SyncNsiWithProductSerializer(serializers.Serializer):
     product_id = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
     nsis = serializers.PrimaryKeyRelatedField(queryset=Nsi.objects.all(), many=True)
+
+
+class SyncNsiWithLifeStageSerializer(serializers.Serializer):
+    stage_id = serializers.PrimaryKeyRelatedField(queryset=LifeStage.objects.all())
+    nsis = serializers.PrimaryKeyRelatedField(queryset=Nsi.objects.all(), many=True)
+
+
+class SyncNsiWithProcessSerializer(serializers.Serializer):
+    process_id = serializers.PrimaryKeyRelatedField(queryset=Process.objects.all())
+    nsis = serializers.PrimaryKeyRelatedField(queryset=Nsi.objects.all(), many=True)
+
+
+class MultiplicityTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MultiplicityType
+        fields = ['id', 'name', 'code', 'position']
+
+
+class CompetenceSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Competence
+        fields = '__all__'
+
+
+class DisciplineSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Discipline
+        fields = '__all__'

@@ -16,6 +16,7 @@ class Direction(models.Model):
         ordering = ['created_at']
         verbose_name = "Направление обучения"
         verbose_name_plural = "Направления обучения"
+
     def __str__(self):
         return self.name
 
@@ -30,6 +31,7 @@ class EducationLevel(models.Model):
         ordering = ['created_at']
         verbose_name = "Уровень образования"
         verbose_name_plural = "Уровни образования"
+
     def __str__(self):
         return self.name
 
@@ -47,6 +49,7 @@ class ProgramRole(models.Model):
         ordering = ['created_at']
         verbose_name = "Роль"
         verbose_name_plural = "Роли"
+
 
 class Program(models.Model):
     FORMS = [
@@ -70,6 +73,7 @@ class Program(models.Model):
     )
     max_semesters = models.PositiveIntegerField(null=True)
     fgos_file = models.FileField(upload_to='fgos_files/', null=True, blank=True)
+
     class Meta:
         db_table = 'programs'
         verbose_name = "Программа"
@@ -97,6 +101,7 @@ class ProgramUser(models.Model):
         db_table = 'program_users'
         verbose_name = "Роль пользователя"
         verbose_name_plural = "Роли пользователя"
+
 
 class NsiType(models.Model):
     id = models.AutoField(primary_key=True)
@@ -132,6 +137,7 @@ class Ministry(models.Model):
         ordering = ['created_at']
         verbose_name = "Министерство"
         verbose_name_plural = "Министерства"
+
 
 class Nsi(models.Model):
     type = models.ForeignKey(NsiType, on_delete=models.SET_NULL, null=True)
@@ -169,10 +175,12 @@ class Nsi(models.Model):
         verbose_name = "НСИ"
         verbose_name_plural = "НСИ"
 
+
 class StageType(models.Model):
     name = models.CharField(max_length=255)
     stage_number = models.PositiveIntegerField()
     code = models.CharField(max_length=255, null=True, blank=True)
+
     class Meta:
         ordering = ['stage_number']  # Сортировка по номеру этапа
         verbose_name = "Тип этап разработки"
@@ -180,6 +188,7 @@ class StageType(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Stage(models.Model):
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='stages')
@@ -191,6 +200,7 @@ class Stage(models.Model):
         verbose_name = "Этап разработки программы"
         verbose_name_plural = "Этапы разработки программ"
 
+
 class WizardType(models.Model):
     name = models.CharField(max_length=300)
     code = models.CharField(max_length=255, null=True, blank=True)
@@ -201,6 +211,7 @@ class WizardType(models.Model):
     class Meta:
         verbose_name = "Тип мастера"
         verbose_name_plural = "Типы мастеров"
+
 
 class StepType(models.Model):
     name = models.CharField(max_length=100)
@@ -216,10 +227,12 @@ class StepType(models.Model):
         verbose_name = "Тип шага"
         verbose_name_plural = "Типы шагов"
 
+
 class Wizard(models.Model):
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='wizards')
     wizard_type = models.ForeignKey(WizardType, on_delete=models.CASCADE)
     created_at = models.DateTimeField(null=True, auto_now_add=True, blank=True)
+
     def __str__(self):
         return f"{self.program} - {self.wizard_type}"
 
@@ -227,6 +240,8 @@ class Wizard(models.Model):
         ordering = ['created_at']
         verbose_name = "Мастер ИИ"
         verbose_name_plural = "Мастера ИИ"
+
+
 class Step(models.Model):
     wizard = models.ForeignKey(Wizard, on_delete=models.CASCADE, related_name='steps')
     step_type = models.ForeignKey(StepType, on_delete=models.CASCADE)
@@ -241,14 +256,107 @@ class Step(models.Model):
         verbose_name_plural = "Шаги ИИ"
 
 
-class Product (models.Model):
+class Product(models.Model):
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=500)
     description = models.TextField(null=True, blank=True)
     position = models.IntegerField(null=True, blank=True)
-    nsis = models.ManyToManyField(Nsi, related_name='products', blank=True, null=True)
+    nsis = models.ManyToManyField(Nsi, related_name='products', blank=True)
+
+    class Meta:
+        ordering = ['program', 'position']
+        verbose_name = "Продукт"
+        verbose_name_plural = "Продукты"
+
+
+class LifeStage(models.Model):
+    name = models.TextField()
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stages')
+    description = models.TextField(null=True, blank=True)
+    position = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    nsis = models.ManyToManyField(Nsi, related_name='lifestages', blank=True)
+
+    class Meta:
+        ordering = ['product', 'position']
+        verbose_name = "Этап ЖЦ"
+        verbose_name_plural = "Этапы ЖЦ"
+
+    def __str__(self):
+        return self.name
+
+
+class Process(models.Model):
+    name = models.TextField()
+    stage = models.ForeignKey(LifeStage, on_delete=models.CASCADE, related_name='processes')
+    description = models.TextField(null=True, blank=True)
+    position = models.IntegerField()
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    result = models.TextField(null=True, blank=True)
+    nsis = models.ManyToManyField(Nsi, related_name='processes', blank=True)
+
+    class Meta:
+        ordering = ['stage', 'position']
+        verbose_name = "Процесс"
+        verbose_name_plural = "Процессы"
+
+    def __str__(self):
+        return self.name
+
+
+class MultiplicityType(models.Model):
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=255)
+    position = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['position']
+        verbose_name = "Тип кратности"
+        verbose_name_plural = "Типы кратности"
+
+    def __str__(self):
+        return self.name
+
+
+DISC_TYPES = [
+    ('Профессиольные', 'Профессиольные'),
+    ('Общепрофессиональные', 'Общепрофессиональные'),
+    ('Универсальные', 'Универсальные'),
+]
+
+
+class Competence(models.Model):
+    name = models.CharField(max_length=355)
+    code = models.CharField(max_length=355)
+    description = models.TextField(null=True, blank=True)
+    position = models.PositiveIntegerField()
+    type = models.CharField(
+        max_length=30,
+        choices=DISC_TYPES,
+    )
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='competences')
 
     class Meta:
         ordering = ['program','position']
-        verbose_name = "Продукт"
-        verbose_name_plural = "Продукты"
+        verbose_name = "Компетенция"
+        verbose_name_plural = "Компетенции"
+
+    def __str__(self):
+        return self.name
+
+
+class Discipline(models.Model):
+    name = models.CharField(max_length=355)
+
+    description = models.TextField(null=True, blank=True)
+    task = models.TextField(null=True, blank=True)
+    type = models.CharField(
+        max_length=30,
+        choices=DISC_TYPES,
+    )
+    position = models.PositiveIntegerField()
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='disciplines')
+    multiplicity_type = models.ForeignKey(MultiplicityType, on_delete=models.SET_NULL, related_name='disciplines',
+                                          null=True)
+    competence = models.ForeignKey(Competence, on_delete=models.SET_NULL, null=True, blank=True, related_name='disciplines')
+
