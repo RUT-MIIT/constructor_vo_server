@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
+from rest_framework.relations import PrimaryKeyRelatedField
 
 from programs.models import EducationLevel, Direction, Program, ProgramRole, \
     ProgramUser, MultiplicityType, Competence, Discipline
@@ -255,15 +256,17 @@ class MultiplicityTypeSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'code', 'position']
 
 
-class CompetenceSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Competence
-        fields = '__all__'
-
-
 class DisciplineSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Discipline
         fields = '__all__'
+
+class CompetenceSerializer(serializers.ModelSerializer):
+    disciplines = DisciplineSerializer(many=True, read_only=True)
+    class Meta:
+        model = Competence
+        fields = '__all__'
+
+
+

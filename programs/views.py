@@ -346,7 +346,29 @@ class RecDtView(APIView):
         return JsonResponse({
             "message": f"Информация по этапу «Реконструкция деятельности» программы {program.id} - {program.profile}.",
             "products": products.data,
-        },json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
+        }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
+
+
+class PrOpdView(APIView):
+    def get(self, request, program_id):
+        # Получаем объект Program или возвращаем 404
+        program = get_object_or_404(Program, id=program_id)
+
+        # Получаем связанные продукты
+        competences = CompetenceSerializer(
+            program.competences.filter(type='Общепрофессиональные').prefetch_related(
+                'disciplines',
+            ),
+            many=True
+        )
+
+        # Формируем JSON-ответ
+        return JsonResponse({
+            "message": f"Информация по этапу «Проектирование ОПД {program.id} - {program.profile}.",
+            "competences": competences.data,
+        }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
+
+
 class SyncNsiWithProductView(APIView):
     def post(self, request, product_id):
         request.data["product_id"] = product_id
@@ -383,6 +405,7 @@ class SyncNsiWithLifeStageView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class LifeStageViewSet(viewsets.ModelViewSet):
     queryset = LifeStage.objects.all()
@@ -559,14 +582,14 @@ class MultiplicityTypesListView(ListAPIView):
     serializer_class = MultiplicityTypeSerializer
 
 
-
 class CompetenceViewSet(viewsets.ModelViewSet):
     serializer_class = CompetenceSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         program_id = self.kwargs.get('program_id')
-        queryset = Competence.objects.filter(program_id=program_id).order_by('position') if program_id else Competence.objects.all()
+        queryset = Competence.objects.filter(program_id=program_id).order_by(
+            'position') if program_id else Competence.objects.all()
         return queryset
 
     def get_serializer_context(self):
@@ -629,7 +652,8 @@ class DisciplineViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         program_id = self.kwargs.get('program_id')
-        queryset = Discipline.objects.filter(program_id=program_id).order_by('type','position') if program_id else Discipline.objects.all()
+        queryset = Discipline.objects.filter(program_id=program_id).order_by('type',
+                                                                             'position') if program_id else Discipline.objects.all()
         return queryset
 
     def get_serializer_context(self):

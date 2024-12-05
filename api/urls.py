@@ -6,7 +6,7 @@ from ai.views import chat_with_gpt, IshDataNsisWizardView
 from programs.views import ProgramViewSet, NsiViewSet, NsiTypeViewSet, MinistryViewSet, EducationLevelListView, \
     EducationDirectionListView, ProgramRoleListView, MyProgramsListView, ProgramInformationView, IshDataView, \
     ProductViewSet, SyncNsiWithProductView, ProcessViewSet, LifeStageViewSet, RecDtView, SyncNsiWithLifeStageView, \
-    SyncNsiWithProcessView, MultiplicityTypesListView, CompetenceViewSet, DisciplineViewSet
+    SyncNsiWithProcessView, MultiplicityTypesListView, CompetenceViewSet, DisciplineViewSet, PrOpdView
 from ai.views import IshDataProductsWizardView, ish_data_products_step_1, ish_data_products_step_2, ish_data_products_step_3, ish_data_products_step_4
 from users.views import UserListView
 
@@ -51,7 +51,8 @@ urlpatterns = [
 
     # Исходные данные этапов
     path('programs/<int:program_id>/stages/ish_data', IshDataView.as_view()), # этап 1
-    path('programs/<int:program_id>/stages/rec_dt', RecDtView.as_view()), # этап 1
+    path('programs/<int:program_id>/stages/rec_dt', RecDtView.as_view()), # этап 2
+    path('programs/<int:program_id>/stages/pr_opd', PrOpdView.as_view()), # этап 4
 
     # AI - исходные данные - продукты
     path('programs/<int:program_id>/stages/ish_data/wizards/ish_data_products', IshDataProductsWizardView.as_view()),

@@ -359,4 +359,5 @@ class Discipline(models.Model):
     multiplicity_type = models.ForeignKey(MultiplicityType, on_delete=models.SET_NULL, related_name='disciplines',
                                           null=True)
     competence = models.ForeignKey(Competence, on_delete=models.SET_NULL, null=True, blank=True, related_name='disciplines')
+    area = models.TextField(null=True, blank=True)
 
