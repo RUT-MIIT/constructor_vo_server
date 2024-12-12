@@ -12,7 +12,7 @@ class DirectionAdmin(admin.ModelAdmin):
 
 @admin.register(EducationLevel)
 class EducationLevelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'created_at', 'updated_at')
+    list_display = ('id','name', 'created_at', 'updated_at')
     search_fields = ('name',)
 
 
@@ -25,7 +25,7 @@ class ProgramRoleAdmin(admin.ModelAdmin):
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
     list_display = (
-        'profile', 'author', 'level_id', 'direction_id', 'form', 'max_semesters', 'created_at', 'updated_at')
+        'id','profile', 'author', 'level_id', 'direction_id', 'form', 'max_semesters', 'created_at', 'updated_at')
     search_fields = ('profile', 'author__email')
     list_filter = ('form', 'level_id', 'direction_id')
     raw_id_fields = ('author',)
@@ -107,7 +107,7 @@ class StepAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'program', 'position', 'get_nsis')  # Поля, отображаемые в списке
+    list_display = ('id', 'name', 'program', 'position')  # Поля, отображаемые в списке
     list_filter = ('program',)  # Боковой фильтр
     search_fields = ('name', 'description', 'program__profile')  # Поля для поиска
     ordering = ('program', 'position')  # Сортировка

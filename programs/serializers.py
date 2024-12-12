@@ -7,7 +7,7 @@ from rest_framework import serializers
 from rest_framework.relations import PrimaryKeyRelatedField
 
 from programs.models import EducationLevel, Direction, Program, ProgramRole, \
-    ProgramUser, MultiplicityType, Competence, Discipline
+    ProgramUser, MultiplicityType, Competence, Discipline, Semester
 from programs.models import NsiType, Ministry, Nsi, Product, Step, LifeStage, Process
 from users.serializers import UserShortSerializer
 
@@ -235,6 +235,45 @@ class ProductRDSerializer(serializers.ModelSerializer):
         data['stages'] = sorted(data['stages'], key=lambda x: x.get('position', 0))
         return data
 
+
+
+class DisciplineSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Discipline
+        fields = '__all__'
+
+
+class ProcessPDSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField(read_only=True)
+    product = serializers.IntegerField(read_only=True, source='stage.product.id')
+
+    class Meta:
+        model = Process
+        fields = ('id', 'name', 'stage', 'position', 'product', 'description', 'result','discipline')
+
+class LifeStagePDSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField(read_only=True)
+    processes = ProcessPDSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LifeStage
+        fields = ('id', 'name', 'product', 'position', 'description', 'processes','discipline')
+
+class ProductPDSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField(read_only=True)
+    program = serializers.PrimaryKeyRelatedField(write_only=True, queryset=Program.objects.all())
+    stages = LifeStagePDSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Product
+        fields = ('id', 'name', 'position', 'description', 'program', 'stages', 'discipline')
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['stages'] = sorted(data['stages'], key=lambda x: x.get('position', 0))
+        return data
+
 class SyncNsiWithProductSerializer(serializers.Serializer):
     product_id = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
     nsis = serializers.PrimaryKeyRelatedField(queryset=Nsi.objects.all(), many=True)
@@ -256,11 +295,7 @@ class MultiplicityTypeSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'code', 'position']
 
 
-class DisciplineSerializer(serializers.ModelSerializer):
 
-    class Meta:
-        model = Discipline
-        fields = '__all__'
 
 class CompetenceSerializer(serializers.ModelSerializer):
     disciplines = DisciplineSerializer(many=True, read_only=True)
@@ -269,4 +304,21 @@ class CompetenceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class DisciplineShortSerializer(serializers.ModelSerializer):
 
+    class Meta:
+        model = Discipline
+        fields = ('id', 'name')
+
+
+class SemesterSerializer (serializers.ModelSerializer):
+
+    name = serializers.SerializerMethodField()
+    disciplines = DisciplineShortSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Semester
+        fields = ('__all__')
+
+    def get_name(self, instance):
+        return "Семестр №" + str(instance.id)

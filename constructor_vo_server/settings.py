@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'users',
     'programs',
     'ai',
+    'export',
 ]
 
 SITE_ID = 1

@@ -1,7 +1,7 @@
 # views.py
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Prefetch
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
@@ -15,12 +15,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import NsiType, Ministry, Nsi, Program, EducationLevel, Direction, ProgramRole, ProgramUser, Product, \
-    LifeStage, Process, MultiplicityType, Competence, Discipline
+    LifeStage, Process, MultiplicityType, Competence, Discipline, Semester
 from .serializers import NsiTypeSerializer, MinistrySerializer, NsiSerializer, EducationLevelSerializer, \
     EducationDirectionSerializer, ProgramRoleSerializer, ProgramInformationSerializer, ProgramSerializer, \
     ProgramUserSerializer, ProductSerializer, SyncNsiWithProductSerializer, ProductRDSerializer, LifeStageRDSerializer, \
     ProcessRDSerializer, SyncNsiWithLifeStageSerializer, SyncNsiWithProcessSerializer, MultiplicityTypeSerializer, \
-    CompetenceSerializer, DisciplineSerializer
+    CompetenceSerializer, DisciplineSerializer, SemesterSerializer, DisciplineShortSerializer, ProductPDSerializer, \
+    LifeStagePDSerializer, ProcessPDSerializer
 
 User = get_user_model()
 
@@ -369,6 +370,106 @@ class PrOpdView(APIView):
         }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
 
 
+class PrPrdView(APIView):
+    def get(self, request, program_id):
+        # Получаем объект Program или возвращаем 404
+        program = get_object_or_404(Program, id=program_id)
+
+        # Получаем связанные продукты
+        products = ProductPDSerializer(
+            program.products.all().prefetch_related(
+                'stages__processes',
+            ),
+            many=True
+        )
+
+        disciplines = DisciplineSerializer(
+            program.disciplines.filter(type='Профессиональные'),
+            many=True
+        )
+
+        # Формируем JSON-ответ
+        return JsonResponse({
+            "message": f"Информация по этапу «Проектирование ПД {program.id} - {program.profile}.",
+            "products": products.data,
+            "disciplines": disciplines.data,
+        }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
+
+
+class YPView(APIView):
+    def get(self, request, program_id):
+        # Получаем объект Program или возвращаем 404
+        program = get_object_or_404(Program, id=program_id)
+
+        if program.semesters.count() == 0:
+            level = program.level_id
+
+        # Определяем количество семестров в зависимости от уровня образования
+            if level.name == 'Бакалавриат':
+                semesters_count = 8
+            elif level.name == 'Специалитет':
+                semesters_count = 10
+            elif level.name == 'Магистратура':
+                semesters_count = 4
+            else:
+                return Response({"error": "Неизвестный уровень образования."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Учитываем форму обучения
+            if program.form == 'Очно-заочная':
+                semesters_count += 1
+            elif program.form == 'Заочная':
+                semesters_count += 2
+
+            # Создаем семестры
+            for i in range(1, semesters_count + 1):
+                Semester.objects.create(program=program, number=i)
+
+
+        semesters = program.semesters.all().order_by('number')
+
+        # Формируем JSON-ответ
+        return JsonResponse({
+            "message": f"Информация по этапу «Учебный план {program.id} - {program.profile}.",
+            "semesters": SemesterSerializer(semesters, many=True).data,
+            "disciplines": [],
+        }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
+
+
+class DesignView(APIView):
+    def get(self, request, program_id):
+        # Получаем объект Program или возвращаем 404
+        program = get_object_or_404(Program, id=program_id)
+
+        competences = CompetenceSerializer(
+            program.competences.filter(type='Общепрофессиональные').prefetch_related('disciplines',),
+            many=True)
+
+        products = Product.objects.prefetch_related(
+            Prefetch(
+                'stages',
+                queryset=LifeStage.objects.prefetch_related(
+                    Prefetch(
+                        'processes',
+                        queryset=Process.objects.prefetch_related('nsis')
+                    ),
+                    'nsis'
+                )
+            ),
+            'nsis'
+        )
+
+        # Формируем JSON-ответ
+        return JsonResponse({
+            "message": f"Информация по этапу «Дизайн-концепт {program.id} - {program.profile}.",
+            "rd": generate_product_stage_process_json(products),
+            "pd": generate_product_stage_process_json_with_discipline(products),
+            "opd": competences.data,
+            "plan": [],
+        }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
+
+
+
+
 class SyncNsiWithProductView(APIView):
     def post(self, request, product_id):
         request.data["product_id"] = product_id
@@ -646,6 +747,43 @@ class CompetenceViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class SemesterViewSet(viewsets.ModelViewSet):
+    queryset = Process.objects.all()
+    serializer_class = SemesterSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        program_id = self.kwargs.get('program_id')
+        queryset = Semester.objects.filter(program_id=program_id).order_by('number')
+        return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['kwargs'] = self.kwargs
+        return context
+
+    def create(self, request, *args, **kwargs):
+        program_id = kwargs.get('program_id')
+        semester_data = request.data.get('semester', {})
+        semester_data['program'] = program_id
+        number = semester_data.get('number')
+        if Semester.objects.filter(program_id=program_id, number=number).exists():
+            raise ValidationError({'message': f"Семестр с номером {number} уже существует в данной программе."})
+
+        serializer = self.get_serializer(data=semester_data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def partial_update(self, request, *args, **kwargs):
+        semester = self.get_object()
+        serializer = self.get_serializer(semester, data=request.data.get('semester', {}), partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
 class DisciplineViewSet(viewsets.ModelViewSet):
     serializer_class = DisciplineSerializer
     permission_classes = [IsAuthenticated]
@@ -707,3 +845,276 @@ class DisciplineViewSet(viewsets.ModelViewSet):
         disciplines = Discipline.objects.filter(id__in=disciplines_order).order_by('position')
         serializer = self.get_serializer(disciplines, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class AttachDisciplineToSemester(APIView):
+    def post(self, request, semester_id):
+        discpline_data = request.data.get('discipline', {})
+        discipline_id = discpline_data['discipline_id']
+        # Получаем семестр и дисциплину по ID
+        semester = get_object_or_404(Semester, pk=semester_id)
+        discipline = get_object_or_404(Discipline, pk=discipline_id)
+
+        # Получаем данные из запроса
+        zet = discpline_data.get('zet', None)
+        control = discpline_data.get('control', None)
+
+        # Проверяем, что данные корректны
+        if not zet or not control:
+            raise ValidationError("Поле 'zet' и 'control' обязательны")
+
+        # Добавляем дисциплину к семестру с указанными zet и control
+        obj, created = semester.disciplines.through.objects.get_or_create(
+            semester_id=semester.id,
+            discipline_id=discipline.id,
+            defaults={'zet': zet, 'control': control}
+        )
+
+        # Если объект уже существует, обновляем данные
+        if not created:
+            obj.zet = zet
+            obj.control = control
+            obj.save()
+
+        # Сериализуем дисциплину
+        serializer = DisciplineShortSerializer(discipline)
+
+        # Возвращаем успешный ответ
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class DetachDisciplineFromSemester (APIView):
+    def delete(self, request, semester_id, discipline_id):
+        semester = get_object_or_404(Semester, pk=semester_id)
+        discipline = get_object_or_404(Discipline, pk=discipline_id)
+
+        semester.disciplines.remove(discipline_id)
+
+        serializer = DisciplineShortSerializer(discipline)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class SyncDisciplineWithProductsView(APIView):
+    def post(self, request, discipline_id):
+
+        discipline = get_object_or_404(Discipline, pk=discipline_id)
+        product_ids = request.data.get('products', [])
+
+        # Проверяем кратность дисциплины
+        # if discipline.multiplicity_type.code != 'one-product':
+        #     return Response(
+        #         {"error": "Неверная кратность дисциплины и переданные элементы деятельности"},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+
+        # Обнуляем связи с дисциплиной у всех продуктов, этапов и процессов
+        discipline.products.update(discipline=None)
+        discipline.stages.update(discipline=None)
+        discipline.processes.update(discipline=None)
+
+        # Устанавливаем дисциплину для выбранных продуктов
+        products = Product.objects.filter(id__in=product_ids)
+        products.update(discipline=discipline)
+
+        # Сериализуем данные продуктов
+        serializer = ProductPDSerializer(products, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class SyncDisciplineWithStagesView(APIView):
+    def post(self, request, discipline_id):
+
+        discipline = get_object_or_404(Discipline, pk=discipline_id)
+        stage_ids = request.data.get('stages', [])
+
+        # Проверяем кратность дисциплины
+        # multiplicity_code = discipline.multiplicity_type.code
+        # if 'lifestage' not in multiplicity_code:
+        #     return Response(
+        #         {"error": "Неверная кратность дисциплины и переданные элементы деятельности"},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+        # if (len(stage_ids) > 1) and (multiplicity_code == 'one-lifestage'):
+        #     return Response(
+        #         {"error": "Неверная кратность - ожмлается 1 этап, а передано несколько"},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+        # if (len(stage_ids) == 1) and (multiplicity_code == 'multi-lifestage'):
+        #     return Response(
+        #         {"error": "Неверная кратность - ожмлается несколько этапов, а передан один"},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+
+        # Обнуляем связи с дисциплиной у всех продуктов, этапов и процессов
+        discipline.products.update(discipline=None)
+        discipline.stages.update(discipline=None)
+        discipline.processes.update(discipline=None)
+
+        # Устанавливаем дисциплину для выбранных продуктов
+        stages = LifeStage.objects.filter(id__in=stage_ids)
+        stages.update(discipline=discipline)
+
+        # Сериализуем данные продуктов
+        serializer = LifeStagePDSerializer(stages, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class SyncDisciplineWithProcessesView(APIView):
+    def post(self, request, discipline_id):
+        discipline = get_object_or_404(Discipline, pk=discipline_id)
+        process_ids = request.data.get('processes', [])
+
+        # Проверяем кратность дисциплины
+        # multiplicity_code = discipline.multiplicity_type.code
+        # if 'process' not in multiplicity_code:
+        #     return Response(
+        #         {"error": "Неверная кратность дисциплины и переданные элементы деятельности"},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+        # if (len(process_ids) > 1) and (multiplicity_code == 'one-process'):
+        #     return Response(
+        #         {"error": "Неверная кратность - ожидается 1 процесс, а передано несколько"},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+        # if (len(process_ids) == 1) and (multiplicity_code == 'multi-process'):
+        #     return Response(
+        #         {"error": "Неверная кратность - ожмлается несколько процессов, а передан один"},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+
+        # Обнуляем связи с дисциплиной у всех продуктов, этапов и процессов
+        discipline.products.update(discipline=None)
+        discipline.stages.update(discipline=None)
+        discipline.processes.update(discipline=None)
+
+        # Устанавливаем дисциплину для выбранных продуктов
+        processes = Process.objects.filter(id__in=process_ids)
+        processes.update(discipline=discipline)
+
+        # Сериализуем данные продуктов
+        serializer = ProcessPDSerializer(processes, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+def generate_product_stage_process_json(products):
+    result = []
+
+    for product_index, product in enumerate(products, start=1):
+        # Добавляем продукт как узел
+        product_node = {
+            "id": product_index,
+            "name": product.name,
+            "description": product.description,
+            "nsis": [nsi.nsiFullName for nsi in product.nsis.all()],
+            "pid": None,
+            "stpid": None,
+            "nodes": []
+        }
+
+        # Генерируем этапы (stages) для текущего продукта
+        for stage_index, stage in enumerate(product.stages.all(), start=1):
+            stage_id = f"{product_index}-{stage_index}"
+            stage_node = {
+                "id": f"{product_index}-{stage_index}",
+                "name": stage.name,
+                "position": str(stage.position),
+                "stpid": None,
+                "pid": str(product_index),
+                "title": "Этап",
+                "type": "stage",
+                "tags": None,
+                "description": stage.description,
+                "result": None,
+                "nsis": [nsi.name for nsi in stage.nsis.all()],
+                "practice": None
+            }
+            product_node["nodes"].append(stage_node)
+
+            # Генерируем процессы (processes) для текущего этапа
+            for process_index, process in enumerate(stage.processes.all(), start=1):
+                process_id = f"{stage_id}-{process_index}"
+                process_node = {
+                    "id": f"{product_index}-{stage_index}-{process_index}",
+                    "name": process.name,
+                    "position": f"{stage_index}.{process_index}",
+                    "stpid": None,
+                    "pid": f"{product_index}-{stage_index}",
+                    "title": "Процесс",
+                    "type": "process",
+                    "tags": None,
+                    "description": process.description,
+                    "result": process.result,
+                    "nsis": [nsi.name for nsi in process.nsis.all()],
+                    "practice": None
+                }
+                product_node["nodes"].append(process_node)
+
+        result.append(product_node)
+
+    return result
+
+
+def generate_product_stage_process_json_with_discipline(products):
+    result = []
+
+    for product_index, product in enumerate(products, start=1):
+        product_node = {
+            "id": product_index,
+            "name": product.name,
+            "description": product.description,
+            "nsis": [nsi.nsiFullName for nsi in product.nsis.all()],
+            "pid": None,
+            "stpid": f"d{product.discipline.id}" if product.discipline else None,
+            "nodes": []
+        }
+
+        for stage_index, stage in enumerate(product.stages.all(), start=1):
+            stage_node = {
+                "id": f"{product_index}-{stage_index}",
+                "name": stage.name,
+                "position": stage.position,
+                "stpid": f"d{stage.discipline.id}" if stage.discipline else None,
+                "pid": None if stage.discipline else str(product_index),
+                "title": "Этап",
+                "type": "stage",
+                "tags": None,
+                "description": stage.description,
+                "result": None,
+                "nsis": [nsi.name for nsi in stage.nsis.all()],
+                "practice": None
+            }
+            product_node["nodes"].append(stage_node)
+
+            for process_index, process in enumerate(stage.processes.all(), start=1):
+                process_id = f"{product_index}-{stage_index}-{process_index}"
+                process_node = {
+                    "id": process_id,
+                    "name": process.name,
+                    "position": f"{stage_index}.{process_index}",
+                    "stpid": f"d{process.discipline.id}" if process.discipline else None,
+                    "pid": None if process.discipline else f"{product_index}-{stage_index}",
+                    "title": "Процесс",
+                    "type": "process",
+                    "tags": None,
+                    "description": process.description,
+                    "result": process.result,
+                    "nsis": [nsi.name for nsi in process.nsis.all()],
+                    "practice": None
+                }
+                product_node["nodes"].append(process_node)
+
+        result.append(product_node)
+        for discipline_index, discipline in enumerate(product.program.disciplines.all(), start=1):
+            discipline_node = {
+                "id": f"d{discipline.id}",
+                "name": discipline.name,
+                "stpid": None,
+                "pid": None,
+                "title": "Дисциплина",
+                "type": "discipline",
+                "tags": None,
+                "description": discipline.description,
+                "practice": discipline.task
+            }
+            product_node["nodes"].append(discipline_node)
+
+    return result

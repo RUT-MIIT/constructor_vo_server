@@ -6,8 +6,11 @@ from ai.views import chat_with_gpt, IshDataNsisWizardView
 from programs.views import ProgramViewSet, NsiViewSet, NsiTypeViewSet, MinistryViewSet, EducationLevelListView, \
     EducationDirectionListView, ProgramRoleListView, MyProgramsListView, ProgramInformationView, IshDataView, \
     ProductViewSet, SyncNsiWithProductView, ProcessViewSet, LifeStageViewSet, RecDtView, SyncNsiWithLifeStageView, \
-    SyncNsiWithProcessView, MultiplicityTypesListView, CompetenceViewSet, DisciplineViewSet, PrOpdView
+    SyncNsiWithProcessView, MultiplicityTypesListView, CompetenceViewSet, DisciplineViewSet, PrOpdView, SemesterViewSet, \
+    YPView, DesignView, PrPrdView, AttachDisciplineToSemester, DetachDisciplineFromSemester, \
+    SyncDisciplineWithProductsView, SyncDisciplineWithStagesView, SyncDisciplineWithProcessesView
 from ai.views import IshDataProductsWizardView, ish_data_products_step_1, ish_data_products_step_2, ish_data_products_step_3, ish_data_products_step_4
+from export.views import export_data
 from users.views import UserListView
 
 
@@ -30,6 +33,7 @@ router.register(r'products/(?P<product_id>\d+)/stages', LifeStageViewSet)
 router.register(r'stages/(?P<stage_id>\d+)/processes', ProcessViewSet)
 router.register(r'programs/(?P<program_id>\d+)/competences', CompetenceViewSet,  basename='competence')
 router.register(r'programs/(?P<program_id>\d+)/disciplines', DisciplineViewSet,  basename='discipline')
+router.register(r'programs/(?P<program_id>\d+)/semesters', SemesterViewSet,  basename='semester')
 
 urlpatterns = [
     path('auth/', include('dj_rest_auth.urls')),
@@ -52,7 +56,10 @@ urlpatterns = [
     # Исходные данные этапов
     path('programs/<int:program_id>/stages/ish_data', IshDataView.as_view()), # этап 1
     path('programs/<int:program_id>/stages/rec_dt', RecDtView.as_view()), # этап 2
+    path('programs/<int:program_id>/stages/pr_prd', PrPrdView.as_view()), # этап 3
     path('programs/<int:program_id>/stages/pr_opd', PrOpdView.as_view()), # этап 4
+    path('programs/<int:program_id>/stages/yp', YPView.as_view()), # этап 5
+    path('programs/<int:program_id>/stages/design', DesignView.as_view()), # этап 6
 
     # AI - исходные данные - продукты
     path('programs/<int:program_id>/stages/ish_data/wizards/ish_data_products', IshDataProductsWizardView.as_view()),
@@ -67,6 +74,14 @@ urlpatterns = [
     path('stages/<int:stage_id>/sync-nsi/', SyncNsiWithLifeStageView.as_view(), name='sync-nsi-with-stage'),
     path('processes/<int:process_id>/sync-nsi/', SyncNsiWithProcessView.as_view(), name='sync-nsi-with-process'),
 
+    path('disciplines/<int:discipline_id>/sync-products/', SyncDisciplineWithProductsView.as_view(), name='sync-discipline-with-products'),
+    path('disciplines/<int:discipline_id>/sync-stages/', SyncDisciplineWithStagesView.as_view(), name='sync-discipline-with-stages'),
+    path('disciplines/<int:discipline_id>/sync-processes/', SyncDisciplineWithProcessesView.as_view(), name='sync-discipline-with-processes'),
+
+    path('semesters/<int:semester_id>/add_discipline', AttachDisciplineToSemester.as_view(), name='add_discipline_to_semester'),
+
     path('multiplicity-types/', MultiplicityTypesListView.as_view(), name='multiplicity-types-list'),
+
+    path('programs/<int:program_id>/export-data/', export_data, name='export_data'),
 
 ] + router.urls

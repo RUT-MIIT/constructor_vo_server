@@ -256,17 +256,82 @@ class Step(models.Model):
         verbose_name_plural = "Шаги ИИ"
 
 
+DISC_TYPES = [
+    ('Профессиональные', 'Профессиональные'),
+    ('Общепрофессиональные', 'Общепрофессиональные'),
+    ('Универсальные', 'Универсальные'),
+]
+
+
+class MultiplicityType(models.Model):
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=255)
+    position = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['position']
+        verbose_name = "Тип кратности"
+        verbose_name_plural = "Типы кратности"
+
+    def __str__(self):
+        return self.name
+
+
+class Competence(models.Model):
+    name = models.CharField(max_length=355)
+    code = models.CharField(max_length=355)
+    description = models.TextField(null=True, blank=True)
+    position = models.PositiveIntegerField()
+    type = models.CharField(
+        max_length=30,
+        choices=DISC_TYPES,
+    )
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='competences')
+
+    class Meta:
+        ordering = ['program', 'position']
+        verbose_name = "Компетенция"
+        verbose_name_plural = "Компетенции"
+
+    def __str__(self):
+        return self.name
+
+
+class Discipline(models.Model):
+    name = models.CharField(max_length=355)
+    description = models.TextField(null=True, blank=True)
+    task = models.TextField(null=True, blank=True)
+    type = models.CharField(
+        max_length=30,
+        choices=DISC_TYPES,
+    )
+    position = models.PositiveIntegerField()
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='disciplines')
+    multiplicity_type = models.ForeignKey(MultiplicityType, on_delete=models.SET_NULL, related_name='disciplines',
+                                          null=True)
+    competence = models.ForeignKey(Competence, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='disciplines')
+    area = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
 class Product(models.Model):
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=500)
     description = models.TextField(null=True, blank=True)
     position = models.IntegerField(null=True, blank=True)
     nsis = models.ManyToManyField(Nsi, related_name='products', blank=True)
+    discipline = models.ForeignKey(Discipline, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='products')
 
     class Meta:
         ordering = ['program', 'position']
         verbose_name = "Продукт"
         verbose_name_plural = "Продукты"
+
+    def __str__(self):
+        return self.name
 
 
 class LifeStage(models.Model):
@@ -276,7 +341,8 @@ class LifeStage(models.Model):
     position = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     nsis = models.ManyToManyField(Nsi, related_name='lifestages', blank=True)
-
+    discipline = models.ForeignKey(Discipline, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='stages')
     class Meta:
         ordering = ['product', 'position']
         verbose_name = "Этап ЖЦ"
@@ -294,6 +360,7 @@ class Process(models.Model):
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     result = models.TextField(null=True, blank=True)
     nsis = models.ManyToManyField(Nsi, related_name='processes', blank=True)
+    discipline = models.ForeignKey(Discipline, on_delete=models.SET_NULL, null=True, blank=True, related_name='processes')
 
     class Meta:
         ordering = ['stage', 'position']
@@ -304,60 +371,17 @@ class Process(models.Model):
         return self.name
 
 
-class MultiplicityType(models.Model):
-    name = models.CharField(max_length=255)
-    code = models.CharField(max_length=255)
-    position = models.PositiveIntegerField()
-
-    class Meta:
-        ordering = ['position']
-        verbose_name = "Тип кратности"
-        verbose_name_plural = "Типы кратности"
+class Semester(models.Model):
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='semesters')
+    number = models.PositiveIntegerField(null=False)
+    disciplines = models.ManyToManyField(Discipline, through='SemesterDiscipline', related_name='semesters')
 
     def __str__(self):
-        return self.name
+        return f"Семестр № {self.number} - id {self.id}"
 
 
-DISC_TYPES = [
-    ('Профессиольные', 'Профессиольные'),
-    ('Общепрофессиональные', 'Общепрофессиональные'),
-    ('Универсальные', 'Универсальные'),
-]
-
-
-class Competence(models.Model):
-    name = models.CharField(max_length=355)
-    code = models.CharField(max_length=355)
-    description = models.TextField(null=True, blank=True)
-    position = models.PositiveIntegerField()
-    type = models.CharField(
-        max_length=30,
-        choices=DISC_TYPES,
-    )
-    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='competences')
-
-    class Meta:
-        ordering = ['program','position']
-        verbose_name = "Компетенция"
-        verbose_name_plural = "Компетенции"
-
-    def __str__(self):
-        return self.name
-
-
-class Discipline(models.Model):
-    name = models.CharField(max_length=355)
-
-    description = models.TextField(null=True, blank=True)
-    task = models.TextField(null=True, blank=True)
-    type = models.CharField(
-        max_length=30,
-        choices=DISC_TYPES,
-    )
-    position = models.PositiveIntegerField()
-    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='disciplines')
-    multiplicity_type = models.ForeignKey(MultiplicityType, on_delete=models.SET_NULL, related_name='disciplines',
-                                          null=True)
-    competence = models.ForeignKey(Competence, on_delete=models.SET_NULL, null=True, blank=True, related_name='disciplines')
-    area = models.TextField(null=True, blank=True)
-
+class SemesterDiscipline(models.Model):
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
+    discipline = models.ForeignKey(Discipline, on_delete=models.CASCADE)
+    zet = models.PositiveIntegerField(null=False, default=0)
+    control = models.CharField(null=True, max_length=20)
