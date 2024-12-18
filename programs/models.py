@@ -383,5 +383,5 @@ class Semester(models.Model):
 class SemesterDiscipline(models.Model):
     semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
     discipline = models.ForeignKey(Discipline, on_delete=models.CASCADE)
-    zet = models.PositiveIntegerField(null=False, default=0)
-    control = models.CharField(null=True, max_length=20)
+    zet = models.PositiveIntegerField(null=True, blank=True, default=0)
+    control = models.CharField(null=True, blank=True, max_length=20)

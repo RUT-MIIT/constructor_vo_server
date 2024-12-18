@@ -78,7 +78,8 @@ urlpatterns = [
     path('disciplines/<int:discipline_id>/sync-stages/', SyncDisciplineWithStagesView.as_view(), name='sync-discipline-with-stages'),
     path('disciplines/<int:discipline_id>/sync-processes/', SyncDisciplineWithProcessesView.as_view(), name='sync-discipline-with-processes'),
 
-    path('semesters/<int:semester_id>/add_discipline', AttachDisciplineToSemester.as_view(), name='add_discipline_to_semester'),
+    path('disciplines/<int:discipline_id>/add_to_semester', AttachDisciplineToSemester.as_view(), name='add_discipline_to_semester'),
+    path('disciplines/<int:discipline_id>/remove_from_semester', DetachDisciplineFromSemester.as_view(), name='remove_discipline_from_semester'),
 
     path('multiplicity-types/', MultiplicityTypesListView.as_view(), name='multiplicity-types-list'),
 

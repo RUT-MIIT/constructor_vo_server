@@ -7,7 +7,7 @@ from rest_framework import serializers
 from rest_framework.relations import PrimaryKeyRelatedField
 
 from programs.models import EducationLevel, Direction, Program, ProgramRole, \
-    ProgramUser, MultiplicityType, Competence, Discipline, Semester
+    ProgramUser, MultiplicityType, Competence, Discipline, Semester, SemesterDiscipline
 from programs.models import NsiType, Ministry, Nsi, Product, Step, LifeStage, Process
 from users.serializers import UserShortSerializer
 
@@ -304,21 +304,60 @@ class CompetenceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class CompetenceShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Competence
+        fields = ('name', 'code')
+
 class DisciplineShortSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Discipline
         fields = ('id', 'name')
 
+class ProductShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ('id', 'name')
+
+
+class LifeStageShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LifeStage
+        fields = ('id', 'name')
+
+class ProcessShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Process
+        fields = ('id', 'name')
+
 
 class SemesterSerializer (serializers.ModelSerializer):
 
     name = serializers.SerializerMethodField()
-    disciplines = DisciplineShortSerializer(many=True, read_only=True)
+    # disciplines = DisciplineShortSerializer(many=True, read_only=True)
 
     class Meta:
         model = Semester
-        fields = ('__all__')
+        fields = ('id','name')
 
     def get_name(self, instance):
-        return "Семестр №" + str(instance.id)
+        return "Семестр №" + str(instance.number)
+
+
+class SemesterDisciplineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SemesterDiscipline
+        fields = ['semester','discipline', 'zet', 'control']
+
+class DisciplineYPSerializer (serializers.ModelSerializer):
+    competence = CompetenceShortSerializer(read_only=True)
+    products = ProductShortSerializer(many=True, read_only=True)
+    stages = LifeStageShortSerializer(many=True, read_only=True)
+    processes = ProcessShortSerializer(many=True, read_only=True)
+    semesters = SemesterDisciplineSerializer(many=True, read_only=True, source='semesterdiscipline_set')
+
+
+    class Meta:
+        model = Discipline
+        fields = ('__all__')

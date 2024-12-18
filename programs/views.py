@@ -21,7 +21,7 @@ from .serializers import NsiTypeSerializer, MinistrySerializer, NsiSerializer, E
     ProgramUserSerializer, ProductSerializer, SyncNsiWithProductSerializer, ProductRDSerializer, LifeStageRDSerializer, \
     ProcessRDSerializer, SyncNsiWithLifeStageSerializer, SyncNsiWithProcessSerializer, MultiplicityTypeSerializer, \
     CompetenceSerializer, DisciplineSerializer, SemesterSerializer, DisciplineShortSerializer, ProductPDSerializer, \
-    LifeStagePDSerializer, ProcessPDSerializer
+    LifeStagePDSerializer, ProcessPDSerializer, DisciplineYPSerializer, SemesterDisciplineSerializer
 
 User = get_user_model()
 
@@ -426,12 +426,14 @@ class YPView(APIView):
 
 
         semesters = program.semesters.all().order_by('number')
-
+        op_disciplines = program.disciplines.filter(type='Общепрофессиональные')
+        pr_disciplines = program.disciplines.filter(type='Профессиональные')
         # Формируем JSON-ответ
         return JsonResponse({
             "message": f"Информация по этапу «Учебный план {program.id} - {program.profile}.",
             "semesters": SemesterSerializer(semesters, many=True).data,
-            "disciplines": [],
+            "op_disciplines": DisciplineYPSerializer(op_disciplines, many=True).data,
+            "pr_disciplines": DisciplineYPSerializer(pr_disciplines, many=True).data,
         }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
 
 
@@ -847,20 +849,18 @@ class DisciplineViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class AttachDisciplineToSemester(APIView):
-    def post(self, request, semester_id):
-        discpline_data = request.data.get('discipline', {})
-        discipline_id = discpline_data['discipline_id']
+
+    def post(self, request, discipline_id):
+        semester_data = request.data.get('semester', {})
+        semester_id = semester_data['semester']
         # Получаем семестр и дисциплину по ID
-        semester = get_object_or_404(Semester, pk=semester_id)
         discipline = get_object_or_404(Discipline, pk=discipline_id)
+        semester = get_object_or_404(Semester, pk=semester_id)
 
         # Получаем данные из запроса
-        zet = discpline_data.get('zet', None)
-        control = discpline_data.get('control', None)
+        zet = semester_data.get('zet', None)
+        control = semester_data.get('control', None)
 
-        # Проверяем, что данные корректны
-        if not zet or not control:
-            raise ValidationError("Поле 'zet' и 'control' обязательны")
 
         # Добавляем дисциплину к семестру с указанными zet и control
         obj, created = semester.disciplines.through.objects.get_or_create(
@@ -876,21 +876,22 @@ class AttachDisciplineToSemester(APIView):
             obj.save()
 
         # Сериализуем дисциплину
-        serializer = DisciplineShortSerializer(discipline)
+        serializer = SemesterDisciplineSerializer(obj)
 
         # Возвращаем успешный ответ
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class DetachDisciplineFromSemester (APIView):
-    def delete(self, request, semester_id, discipline_id):
+    def delete(self, request, discipline_id):
+        semester_id = request.data.get('semester', {})
         semester = get_object_or_404(Semester, pk=semester_id)
         discipline = get_object_or_404(Discipline, pk=discipline_id)
 
         semester.disciplines.remove(discipline_id)
 
         serializer = DisciplineShortSerializer(discipline)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "Detached"}, status=status.HTTP_200_OK)
 
 
 class SyncDisciplineWithProductsView(APIView):
@@ -1002,13 +1003,16 @@ def generate_product_stage_process_json(products):
         # Добавляем продукт как узел
         product_node = {
             "id": product_index,
+            "nodes": []
+        }
+        product_node["nodes"].append({
+            "id": product_index,
             "name": product.name,
             "description": product.description,
             "nsis": [nsi.nsiFullName for nsi in product.nsis.all()],
             "pid": None,
-            "stpid": None,
-            "nodes": []
-        }
+            "stpid": f"d{product.discipline.id}" if product.discipline else None
+        })
 
         # Генерируем этапы (stages) для текущего продукта
         for stage_index, stage in enumerate(product.stages.all(), start=1):
@@ -1043,7 +1047,7 @@ def generate_product_stage_process_json(products):
                     "tags": None,
                     "description": process.description,
                     "result": process.result,
-                    "nsis": [nsi.name for nsi in process.nsis.all()],
+                    "nsis": [nsi.nsiFullName for nsi in process.nsis.all()],
                     "practice": None
                 }
                 product_node["nodes"].append(process_node)
@@ -1059,13 +1063,16 @@ def generate_product_stage_process_json_with_discipline(products):
     for product_index, product in enumerate(products, start=1):
         product_node = {
             "id": product_index,
+            "nodes": []
+        }
+        product_node["nodes"].append({
+            "id": product_index,
             "name": product.name,
             "description": product.description,
             "nsis": [nsi.nsiFullName for nsi in product.nsis.all()],
             "pid": None,
-            "stpid": f"d{product.discipline.id}" if product.discipline else None,
-            "nodes": []
-        }
+            "stpid": f"d{product.discipline.id}" if product.discipline else None
+        })
 
         for stage_index, stage in enumerate(product.stages.all(), start=1):
             stage_node = {
@@ -1097,7 +1104,7 @@ def generate_product_stage_process_json_with_discipline(products):
                     "tags": None,
                     "description": process.description,
                     "result": process.result,
-                    "nsis": [nsi.name for nsi in process.nsis.all()],
+                    "nsis": [nsi.nsiFullName for nsi in process.nsis.all()],
                     "practice": None
                 }
                 product_node["nodes"].append(process_node)
