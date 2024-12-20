@@ -1,7 +1,7 @@
 # views.py
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F, Prefetch
+from django.db.models import F, Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
@@ -446,7 +446,7 @@ class DesignView(APIView):
             program.competences.filter(type='Общепрофессиональные').prefetch_related('disciplines',),
             many=True)
 
-        products = Product.objects.prefetch_related(
+        products = program.products.prefetch_related(
             Prefetch(
                 'stages',
                 queryset=LifeStage.objects.prefetch_related(
@@ -460,13 +460,52 @@ class DesignView(APIView):
             'nsis'
         )
 
+        plan = []
+        total_semesters = program.semesters.count()
+        opds = program.disciplines.filter(type='Общепрофессиональные').select_related('competence').prefetch_related('semesters')
+        plan.append({
+            "type": 'section',
+            "number": '1',
+            "name": 'Общепрофессиональные дисциплины (ОПД)',
+            "competences": None,
+            "colspan": total_semesters + 2
+        })
+        plan += get_disciplines_yp_json(opds, total_semesters,'1')
+        plan.append({
+            "type": 'section',
+            "number": '2',
+            "name": 'Профессиональные дисциплины (ПД)',
+            "competences": None,
+            "colspan": total_semesters + 2
+        })
+
+        products = program.products.all().order_by('position')
+
+        for product_index, product in enumerate(products, start=1):
+            plan.append({
+                "type": 'module',
+                "number": f'2.{product_index}',
+                "name": f"Модуль {product_index}: {product.name}",
+                "competences": None,
+                "colspan": total_semesters + 2
+            })
+
+            disciplines = Discipline.objects.filter(
+                Q(id__in=product.stages.values('discipline_id')) |  # дисциплины через Stage
+                Q(id=product.discipline_id) |  # дисциплина самого продукта
+                Q(id__in=Process.objects.filter(stage__in=product.stages.all()).values('discipline_id'))
+            ).distinct()
+            plan += get_disciplines_yp_json(disciplines, total_semesters, f'2.{product_index}')
+
         # Формируем JSON-ответ
         return JsonResponse({
             "message": f"Информация по этапу «Дизайн-концепт {program.id} - {program.profile}.",
+            "main": ProgramSerializer(program, context={'request': request}).data,
+            "products": generate_products_json(products),
             "rd": generate_product_stage_process_json(products),
             "pd": generate_product_stage_process_json_with_discipline(products),
             "opd": competences.data,
-            "plan": [],
+            "plan": plan,
         }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
 
 
@@ -996,6 +1035,16 @@ class SyncDisciplineWithProcessesView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+def generate_products_json(products):
+    result = []
+    for product_index, product in enumerate(products):
+        result.append({
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "nsis": [nsi.nsiFullName for nsi in product.nsis.all()],
+        })
+    return result
 def generate_product_stage_process_json(products):
     result = []
 
@@ -1011,7 +1060,10 @@ def generate_product_stage_process_json(products):
             "description": product.description,
             "nsis": [nsi.nsiFullName for nsi in product.nsis.all()],
             "pid": None,
-            "stpid": f"d{product.discipline.id}" if product.discipline else None
+            "stpid": f"d{product.discipline.id}" if product.discipline else None,
+            "type": 'product',
+            "title": 'Продукт',
+            "position": product.position,
         })
 
         # Генерируем этапы (stages) для текущего продукта
@@ -1062,25 +1114,28 @@ def generate_product_stage_process_json_with_discipline(products):
 
     for product_index, product in enumerate(products, start=1):
         product_node = {
-            "id": product_index,
+            "id": f"p{product.id}",
             "nodes": []
         }
         product_node["nodes"].append({
-            "id": product_index,
+            "id": f"p{product.id}",
             "name": product.name,
             "description": product.description,
             "nsis": [nsi.nsiFullName for nsi in product.nsis.all()],
             "pid": None,
+            "title": "Продукт",
+            "type": "product",
+            "position": product.position,
             "stpid": f"d{product.discipline.id}" if product.discipline else None
         })
 
         for stage_index, stage in enumerate(product.stages.all(), start=1):
             stage_node = {
-                "id": f"{product_index}-{stage_index}",
+                "id": f"s{stage.id}",
                 "name": stage.name,
                 "position": stage.position,
                 "stpid": f"d{stage.discipline.id}" if stage.discipline else None,
-                "pid": None if stage.discipline else str(product_index),
+                "pid": None if stage.discipline else f"p{product.id}",
                 "title": "Этап",
                 "type": "stage",
                 "tags": None,
@@ -1092,13 +1147,13 @@ def generate_product_stage_process_json_with_discipline(products):
             product_node["nodes"].append(stage_node)
 
             for process_index, process in enumerate(stage.processes.all(), start=1):
-                process_id = f"{product_index}-{stage_index}-{process_index}"
+                process_id = f"ps{process.id}"
                 process_node = {
                     "id": process_id,
                     "name": process.name,
                     "position": f"{stage_index}.{process_index}",
                     "stpid": f"d{process.discipline.id}" if process.discipline else None,
-                    "pid": None if process.discipline else f"{product_index}-{stage_index}",
+                    "pid": None if process.discipline else f"s{stage.id}",
                     "title": "Процесс",
                     "type": "process",
                     "tags": None,
@@ -1110,12 +1165,18 @@ def generate_product_stage_process_json_with_discipline(products):
                 product_node["nodes"].append(process_node)
 
         result.append(product_node)
-        for discipline_index, discipline in enumerate(product.program.disciplines.all(), start=1):
+        disciplines = Discipline.objects.filter(
+            Q(id__in=product.stages.values('discipline_id')) |  # дисциплины через Stage
+            Q(id=product.discipline_id) |  # дисциплина самого продукта
+            Q(id__in=Process.objects.filter(stage__in=product.stages.all()).values('discipline_id'))
+            # дисциплины через Process
+        ).distinct()
+        for discipline_index, discipline in enumerate(disciplines, start=1):
             discipline_node = {
                 "id": f"d{discipline.id}",
                 "name": discipline.name,
                 "stpid": None,
-                "pid": None,
+                "pid": get_discipline_pid(discipline),
                 "title": "Дисциплина",
                 "type": "discipline",
                 "tags": None,
@@ -1125,3 +1186,52 @@ def generate_product_stage_process_json_with_discipline(products):
             product_node["nodes"].append(discipline_node)
 
     return result
+
+
+def get_discipline_pid(discipline):
+    if discipline.stages.exists():
+        return f"p{discipline.stages.first().product.id}"
+
+    if discipline.processes.exists():
+        return f"s{discipline.processes.first().stage.id}"
+
+    return None
+
+
+def get_disciplines_yp_json(disciplines, total_semesters, position_prefix):
+    result = []
+    for discipline_index, discipline in enumerate(disciplines, start=1):
+
+        competences_data = []
+        if discipline.competence:
+            competences_data.append({
+                'id': discipline.competence.code,  # или любое другое поле, которое используется для идентификации
+                'code': discipline.competence.code,  # например, короткое имя
+                'name': discipline.competence.name,
+            })
+
+
+        # Создаём словарь с семестрами
+
+        semesters_data = {
+            f"sem{i}": None for i in range(1, total_semesters+1)
+        }
+        # Получаем все семестры, связанные с дисциплиной
+
+        # Заполняем только те семестры, которые есть у дисциплины
+        for semester in discipline.semesters.all():
+            semesters_data[f"sem{semester.number}"] = '*'  #
+
+        # Теперь создаём окончательный JSON
+        result.append({
+            "type": "discipline",
+            "number": f"{position_prefix}.{discipline_index}",
+            "name": discipline.name,
+            "competences": competences_data,
+            **semesters_data,
+            "colspan": None,
+        })
+
+    return result
+
+

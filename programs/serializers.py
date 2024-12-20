@@ -147,6 +147,7 @@ class ProgramSerializer(serializers.ModelSerializer):
         return f"{obj.direction_id.code} {obj.direction_id.name} {obj.profile} ({obj.level_id.name})"
 
     def get_my_role(self, obj):
+        if not self.context['request']: return ''
         user_id = self.context['request'].user.id
         roles = ProgramUser.objects.filter(user_id=user_id)
         name = roles.first().role_id.name if roles.exists() else ''
