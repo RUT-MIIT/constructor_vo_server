@@ -92,7 +92,7 @@ class ProgramSerializer(serializers.ModelSerializer):
         model = Program
         fields = (
             'id', 'profile', 'annotation', 'level', 'direction', 'form', 'participants', 'my_role', 'authorId',
-            'fgos_file', 'fgos_url', 'name'
+            'fgos_file', 'fgos_url', 'name', 'annotation'
         )
 
     def convert_fgos_file(self, fgos_data):
@@ -122,25 +122,36 @@ class ProgramSerializer(serializers.ModelSerializer):
         return ContentFile(base64.b64decode(file_str), name=filename)
 
     def validate(self, attrs):
+        # Проверяем метод запроса
+        request = self.context.get('request')
+        is_post = request and request.method == 'POST'
+
+        # direction обязателен при POST
         direction_data = self.initial_data.get('direction')
-        direction = get_object_or_404(Direction, id=direction_data.get('id'))
+        if is_post and not direction_data:
+            raise serializers.ValidationError({'direction': 'Поле direction обязательно для создания.'})
 
-        if '.03.' in direction.code:
-            level_id = 1
-        elif '.04.' in direction.code:
-            level_id = 3
-        else:
-            level_id = 2
+        # direction обрабатывается только если передан
+        if direction_data:
+            direction = get_object_or_404(Direction, id=direction_data.get('id'))
 
-        level = get_object_or_404(EducationLevel, id=level_id)
+            if '.03.' in direction.code:
+                level_id = 1
+            elif '.04.' in direction.code:
+                level_id = 3
+            else:
+                level_id = 2
 
-        attrs['direction_id'] = direction
-        attrs['level_id'] = level
+            level = get_object_or_404(EducationLevel, id=level_id)
+
+            attrs['direction_id'] = direction
+            attrs['level_id'] = level
 
         # Обрабатываем fgos_file, если оно есть
         fgos_file_data = attrs.get('fgos_file')
         if fgos_file_data:
             attrs['fgos_file'] = self.convert_fgos_file(fgos_file_data)
+
         return attrs
 
     def get_name(self, obj):

@@ -234,17 +234,22 @@ def export_prd(program_id):
 
             p = doc.add_paragraph(style='main_text_12')
             p.add_run(f"Деятельность").bold = True
-            multiplicity_code = disc.multiplicity_type.code
-            if 'product' in multiplicity_code:
-                for elem in disc.products.order_by('position'):
-                    p = doc.add_paragraph(f"Продукт {elem.name}",style="marked_list_12")
-            if 'lifestage' in multiplicity_code:
-                for elem in disc.stages.order_by('position'):
-                    p = doc.add_paragraph(f"Этап {elem.position}. {elem.name}", style="marked_list_12")
-            if 'process' in multiplicity_code:
-                for elem in disc.processes.order_by('position'):
-                    p = doc.add_paragraph(f"Процесс {elem.stage.position}.{elem.position} {elem.name}", style="marked_list_12")
 
+            products = disc.products.order_by('position')
+            stages = disc.stages.order_by('position')
+            processes = disc.processes.order_by('position')
+
+            for product in products:
+                doc.add_paragraph(f"Продукт {product.name}", style="marked_list_12")
+
+            for stage in stages:
+                doc.add_paragraph(f"Этап {stage.position}. {stage.name}", style="marked_list_12")
+
+            for process in processes:
+                doc.add_paragraph(
+                    f"Процесс {process.stage.position}.{process.position} {process.name}",
+                    style="marked_list_12"
+                )
 
             p = doc.add_paragraph(style='main_text_12')
             p.add_run(f"Содержание").bold = True
