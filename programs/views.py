@@ -427,7 +427,7 @@ class YPView(APIView):
                 Semester.objects.create(program=program, number=i)
 
 
-        semesters = program.semesters.all().order_by('number')
+        semesters = program.semesters.all().prefetch_related('disciplines').order_by('number')
         op_disciplines = program.disciplines.filter(type='Общепрофессиональные')
         pr_disciplines = program.disciplines.filter(type='Профессиональные')
         # Формируем JSON-ответ

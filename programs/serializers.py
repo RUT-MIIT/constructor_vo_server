@@ -2,6 +2,7 @@ import base64
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.relations import PrimaryKeyRelatedField
@@ -307,8 +308,6 @@ class MultiplicityTypeSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'code', 'position']
 
 
-
-
 class CompetenceSerializer(serializers.ModelSerializer):
     disciplines = DisciplineSerializer(many=True, read_only=True)
     class Meta:
@@ -347,14 +346,19 @@ class ProcessShortSerializer(serializers.ModelSerializer):
 class SemesterSerializer (serializers.ModelSerializer):
 
     name = serializers.SerializerMethodField()
+    total_zet = serializers.SerializerMethodField()
+
     # disciplines = DisciplineShortSerializer(many=True, read_only=True)
 
     class Meta:
         model = Semester
-        fields = ('id','name')
+        fields = ('id','name','total_zet')
 
     def get_name(self, instance):
         return "Семестр №" + str(instance.number)
+
+    def get_total_zet(self, obj):
+        return SemesterDiscipline.objects.filter(semester=obj).aggregate(total_zet=Sum('zet'))['total_zet'] or 0
 
 
 class SemesterDisciplineSerializer(serializers.ModelSerializer):
@@ -373,3 +377,5 @@ class DisciplineYPSerializer (serializers.ModelSerializer):
     class Meta:
         model = Discipline
         fields = ('__all__')
+
+

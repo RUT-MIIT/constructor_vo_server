@@ -276,12 +276,23 @@ def archive_and_serve(request, program_id):
     shutil.make_archive(archive_path.replace('.zip', ''), 'zip', directory)
 
     # Удаляем исходную папку
-    # shutil.rmtree(directory)
+    shutil.rmtree(directory)
 
     # Возвращаем архив как файл для скачивания
     with open(archive_path, 'rb') as f:
         response = HttpResponse(f.read(), content_type='application/zip')
         response['Content-Disposition'] = f'attachment; filename={archive_name}'
+
+    return response
+
+
+
+def get_pdf(request):
+    name = '1_Концептульное проектирование.pdf'
+    path = os.path.join(f"export/files/", name)
+    with open(path, 'rb') as f:
+        response = HttpResponse(f.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename={name}'
 
     return response
 

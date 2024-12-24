@@ -10,7 +10,7 @@ from programs.views import ProgramViewSet, NsiViewSet, NsiTypeViewSet, MinistryV
     YPView, DesignView, PrPrdView, AttachDisciplineToSemester, DetachDisciplineFromSemester, \
     SyncDisciplineWithProductsView, SyncDisciplineWithStagesView, SyncDisciplineWithProcessesView
 from ai.views import IshDataProductsWizardView, ish_data_products_step_1, ish_data_products_step_2, ish_data_products_step_3, ish_data_products_step_4
-from export.views import export_data
+from export.views import export_data, get_pdf
 from users.views import UserListView
 
 
@@ -84,5 +84,7 @@ urlpatterns = [
     path('multiplicity-types/', MultiplicityTypesListView.as_view(), name='multiplicity-types-list'),
 
     path('programs/<int:program_id>/export-data/', export_data, name='export_data'),
+
+    path('help/pdf_1', get_pdf, name='pdf_1'),
 
 ] + router.urls

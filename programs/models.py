@@ -385,3 +385,26 @@ class SemesterDiscipline(models.Model):
     discipline = models.ForeignKey(Discipline, on_delete=models.CASCADE)
     zet = models.PositiveIntegerField(null=True, blank=True, default=0)
     control = models.CharField(null=True, blank=True, max_length=100)
+
+
+class Setting (models.Model):
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=300)
+    default = models.CharField(max_length=100)
+
+    class Meta:
+        verbose_name = "Настройка"
+        verbose_name_plural = "Настройки"
+
+    def __str__(self):
+        return self.name
+
+
+class ProgramSetting(models.Model):
+    setting = models.ForeignKey(Setting, on_delete=models.CASCADE, related_name='programs')
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='settings')
+    value = models.CharField(max_length=100)
+
+    class Meta:
+        verbose_name = "Настройка программы"
+        verbose_name_plural = "Настройки программ"
