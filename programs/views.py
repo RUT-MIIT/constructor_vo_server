@@ -437,7 +437,7 @@ class YPView(APIView):
             "name": f"Общепрофессиональные дисциплины",
             "type": "module"
         })
-        for discipline in program.disciplines.filter(type='Общепрофессиональные'):
+        for discipline in program.disciplines.filter(type='Общепрофессиональные').order_by('position'):
             op_disciplines.append({
                 "id": discipline.id,
                 "name": discipline.name,
@@ -459,7 +459,7 @@ class YPView(APIView):
                 Q(id=product.discipline_id) |  # дисциплина самого продукта
                 Q(id__in=Process.objects.filter(stage__in=product.stages.all()).values('discipline_id'))
                 # дисциплины через Process
-            ).distinct()
+            ).distinct().order_by('position')
             pr_disciplines.append({  # Здесь исправлено
                 "name": f"Модуль: {product.name}",
                 "type": "module"
@@ -517,7 +517,7 @@ class DesignView(APIView):
 
         plan = []
         total_semesters = program.semesters.count()
-        opds = program.disciplines.filter(type='Общепрофессиональные').select_related('competence').prefetch_related('semesters')
+        opds = program.disciplines.filter(type='Общепрофессиональные').order_by('position').select_related('competence').prefetch_related('semesters')
         plan.append({
             "type": 'section',
             "number": '1',
@@ -549,7 +549,7 @@ class DesignView(APIView):
                 Q(id__in=product.stages.values('discipline_id')) |  # дисциплины через Stage
                 Q(id=product.discipline_id) |  # дисциплина самого продукта
                 Q(id__in=Process.objects.filter(stage__in=product.stages.all()).values('discipline_id'))
-            ).distinct()
+            ).distinct().order_by('position')
             plan += get_disciplines_yp_json(disciplines, total_semesters, f'2.{product_index}')
 
         # Формируем JSON-ответ
