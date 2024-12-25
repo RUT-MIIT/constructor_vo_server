@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import NsiType, Ministry, Nsi, Program, EducationLevel, Direction, ProgramRole, ProgramUser, Product, \
-    LifeStage, Process, MultiplicityType, Competence, Discipline, Semester
+    LifeStage, Process, MultiplicityType, Competence, Discipline, Semester, SemesterDiscipline
 from .serializers import NsiTypeSerializer, MinistrySerializer, NsiSerializer, EducationLevelSerializer, \
     EducationDirectionSerializer, ProgramRoleSerializer, ProgramInformationSerializer, ProgramSerializer, \
     ProgramUserSerializer, ProductSerializer, SyncNsiWithProductSerializer, ProductRDSerializer, LifeStageRDSerializer, \
@@ -428,14 +428,64 @@ class YPView(APIView):
 
 
         semesters = program.semesters.all().prefetch_related('disciplines').order_by('number')
-        op_disciplines = program.disciplines.filter(type='Общепрофессиональные')
-        pr_disciplines = program.disciplines.filter(type='Профессиональные')
+        # op_disciplines = program.disciplines.filter(type='Общепрофессиональные')
+        # pr_disciplines = program.disciplines.filter(type='Профессиональные')
+        pr_disciplines = []
+        op_disciplines = []
+
+        op_disciplines.append({  # Здесь исправлено
+            "name": f"Общепрофессиональные дисциплины",
+            "type": "module"
+        })
+        for discipline in program.disciplines.filter(type='Общепрофессиональные'):
+            op_disciplines.append({
+                "id": discipline.id,
+                "name": discipline.name,
+                "description": discipline.description,
+                "type": "Общепрофессиональные",
+                "semesters": [
+                    {
+                        "semester": sem.semester.id,
+                        "discipline": sem.discipline.id,
+                        "zet": sem.zet,
+                        "control": sem.control
+                    } for sem in SemesterDiscipline.objects.filter(discipline=discipline)
+                ],
+            })
+
+        for product in program.products.all().order_by('position'):
+            disciplines = Discipline.objects.filter(
+                Q(id__in=product.stages.values('discipline_id')) |  # дисциплины через Stage
+                Q(id=product.discipline_id) |  # дисциплина самого продукта
+                Q(id__in=Process.objects.filter(stage__in=product.stages.all()).values('discipline_id'))
+                # дисциплины через Process
+            ).distinct()
+            pr_disciplines.append({  # Здесь исправлено
+                "name": f"Модуль: {product.name}",
+                "type": "module"
+            })
+            for discipline in disciplines:
+                pr_disciplines.append({
+                    "id": discipline.id,
+                    "name": discipline.name,
+                    "description": discipline.description,
+                    "type": "Профессиональные",
+                    "semesters": [
+                        {
+                            "semester": sem.semester.id,
+                            "discipline": sem.discipline.id,
+                            "zet": sem.zet,
+                            "control": sem.control
+                        } for sem in SemesterDiscipline.objects.filter(discipline=discipline)
+                    ],
+                })
+
         # Формируем JSON-ответ
         return JsonResponse({
             "message": f"Информация по этапу «Учебный план {program.id} - {program.profile}.",
             "semesters": SemesterSerializer(semesters, many=True).data,
-            "op_disciplines": DisciplineYPSerializer(op_disciplines, many=True).data,
-            "pr_disciplines": DisciplineYPSerializer(pr_disciplines, many=True).data,
+            "op_disciplines": op_disciplines,
+            "pr_disciplines": pr_disciplines,
         }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
 
 

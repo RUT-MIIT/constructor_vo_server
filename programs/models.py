@@ -408,3 +408,10 @@ class ProgramSetting(models.Model):
     class Meta:
         verbose_name = "Настройка программы"
         verbose_name_plural = "Настройки программ"
+
+
+
+class Activity(models.Model):
+    name = models.CharField(max_length=300)
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='activities')
+    zet = models.PositiveIntegerField(null=True, blank=True, default=0)

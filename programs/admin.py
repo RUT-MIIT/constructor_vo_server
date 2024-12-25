@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import Direction, EducationLevel, ProgramRole, Program, ProgramUser, NsiType, Ministry, Nsi, StageType, \
     Stage, WizardType, StepType, Wizard, Step, Product, LifeStage, Process, MultiplicityType, Discipline, Competence, \
-    Setting, ProgramSetting
+    Setting, ProgramSetting, Activity
 
 
 @admin.register(Direction)
@@ -175,3 +175,10 @@ class ProgramSettingAdmin(admin.ModelAdmin):
     search_fields = ('program__profile', 'setting__name', 'value')
     list_filter = ('program', 'setting')
     ordering = ('program', 'setting')
+
+
+@admin.register(Activity)
+class ActivityAdmin(admin.ModelAdmin):
+    list_display = ('name', 'semester', 'zet')
+    list_filter = ('semester',)
+    search_fields = ('name',)
