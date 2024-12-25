@@ -10,7 +10,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -490,6 +490,9 @@ class YPView(APIView):
 
 
 class DesignView(APIView):
+    permission_classes = [AllowAny]
+
+
     def get(self, request, program_id):
         # Получаем объект Program или возвращаем 404
         program = get_object_or_404(Program, id=program_id)
