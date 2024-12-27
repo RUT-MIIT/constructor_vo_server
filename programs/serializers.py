@@ -352,7 +352,7 @@ class SemesterSerializer (serializers.ModelSerializer):
 
     class Meta:
         model = Semester
-        fields = ('id','name','total_zet')
+        fields = ('id','name','zet_taken','total_zet')
 
     def get_name(self, instance):
         return "Семестр №" + str(instance.number)
