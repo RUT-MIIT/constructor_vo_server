@@ -390,11 +390,17 @@ class PrPrdView(APIView):
             many=True
         )
 
+        competences = CompetenceSerializer(
+            program.competences.filter(type='Профессиональные'),
+            many=True
+        )
+
         # Формируем JSON-ответ
         return JsonResponse({
             "message": f"Информация по этапу «Проектирование ПД {program.id} - {program.profile}.",
             "products": products.data,
             "disciplines": disciplines.data,
+            "competences": competences.data,
         }, json_dumps_params={'ensure_ascii': False}, status=status.HTTP_200_OK)
 
 
@@ -1122,7 +1128,7 @@ def generate_product_stage_process_json(products):
         })
 
         # Генерируем этапы (stages) для текущего продукта
-        for stage_index, stage in enumerate(product.stages.all(), start=1):
+        for stage_index, stage in enumerate(product.stages.all().order_by('position'), start=1):
             stage_id = f"{product_index}-{stage_index}"
             stage_node = {
                 "id": f"{product_index}-{stage_index}",
@@ -1141,7 +1147,7 @@ def generate_product_stage_process_json(products):
             product_node["nodes"].append(stage_node)
 
             # Генерируем процессы (processes) для текущего этапа
-            for process_index, process in enumerate(stage.processes.all(), start=1):
+            for process_index, process in enumerate(stage.processes.all().order_by('position'), start=1):
                 process_id = f"{stage_id}-{process_index}"
                 process_node = {
                     "id": f"{product_index}-{stage_index}-{process_index}",
@@ -1184,7 +1190,7 @@ def generate_product_stage_process_json_with_discipline(products):
             "stpid": f"d{product.discipline.id}" if product.discipline else None
         })
 
-        for stage_index, stage in enumerate(product.stages.all(), start=1):
+        for stage_index, stage in enumerate(product.stages.all().order_by('position'), start=1):
             stage_node = {
                 "id": f"s{stage.id}",
                 "name": stage.name,
@@ -1201,7 +1207,7 @@ def generate_product_stage_process_json_with_discipline(products):
             }
             product_node["nodes"].append(stage_node)
 
-            for process_index, process in enumerate(stage.processes.all(), start=1):
+            for process_index, process in enumerate(stage.processes.all().order_by('position'), start=1):
                 process_id = f"ps{process.id}"
                 process_node = {
                     "id": process_id,
