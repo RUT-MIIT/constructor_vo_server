@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Главная{% endblock %}
+
+{% block content %}
+    <div class="container-fluid mt-4">
+        <!-- Верхняя часть: параметры -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="p-3 border bg-light">
+                    <h4>Параметры</h4>
+
+                    <form>
+                        <div class="row">
+                            <!-- Выбор цепочки -->
+                            <div class="col-md-4 mb-3">
+                                <label for="chainSelect" class="form-label">Выберите цепочку</label>
+                                <select class="form-select" id="chainSelect" name="chain">
+                                    <option selected disabled>Выберите...</option>
+                                    {% for chain in chains %}
+                                        <option value="{{ chain.id }}">{{ chain.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Выбор модели -->
+                            <div class="col-md-4 mb-3">
+                                <label for="modelSelect" class="form-label">Выберите модель</label>
+                                <select class="form-select" id="modelSelect" name="model">
+                                    <option selected disabled>Выберите...</option>
+                                    {% for model in models %}
+                                        <option value="{{ model.id }}">{{ model.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Выбор программы -->
+                            <div class="col-md-4 mb-3">
+                                <label for="programSelect" class="form-label">Выберите программу</label>
+                                <select class="form-select" id="programSelect" name="program">
+                                    <option selected disabled>Выберите...</option>
+                                    {% for program in programs %}
+                                        <option value="{{ program.id }}">{{ program.profile }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div
+                                id="auto-load-trigger"
+                                hx-get="{% url 'load_chain_inputs' %}"
+                                hx-target="#input-params"
+                                hx-swap="innerHTML"
+                                hx-include="[name='chain'], [name='program'], [name='model']"
+                                hx-trigger="refresh"
+                                style="display: none;">
+                        </div>
+
+                    </form>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Нижняя часть: деление на 2 колонки -->
+        <div class="row">
+            <!-- Левая колонка -->
+            <div class="col-md-6 mb-4">
+                <div class="p-3 border bg-white">
+                    <h5>Исходные параметры</h5>
+                    <div id="input-params">
+                        <!-- Сюда HTMX вставит результат -->
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Правая колонка -->
+            <div class="col-md-6 mb-4">
+                <div class="p-3 border bg-white">
+                    <h5>Результаты</h5>
+                    <div id="result-block">
+                        <!-- сюда прилетит результат -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+{% endblock %}
+
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const chainSelect = document.getElementById('chainSelect');
+            const modelSelect = document.getElementById('modelSelect');
+            const programSelect = document.getElementById('programSelect');
+            const autoTrigger = document.getElementById('auto-load-trigger');
+
+            function checkAndTrigger() {
+                if (chainSelect.value && modelSelect.value && programSelect.value) {
+                    // Запустить HTMX-запрос вручную
+                    htmx.trigger(autoTrigger, 'refresh');
+                }
+            }
+
+            chainSelect.addEventListener('change', checkAndTrigger);
+            modelSelect.addEventListener('change', checkAndTrigger);
+            programSelect.addEventListener('change', checkAndTrigger);
+        });
+    </script>
+
+{% endblock %}

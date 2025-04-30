@@ -1,0 +1,46 @@
+<form id="inputs-form" method="POST">
+    {% csrf_token %}
+    <div class="mb-3 d-flex justify-content-start">
+        <button
+            class="btn btn-success"
+            type="submit"
+            hx-post="{% url 'generate_result' %}"
+            hx-target="#result-block"
+            hx-swap="innerHTML"
+            hx-include="#inputs-form">
+            Сгенерировать результат
+        </button>
+    </div>
+
+    <div class="list-group">
+        {% for field in inputs %}
+            <div class="list-group-item">
+                <strong>{{ field.name }}</strong><br>
+
+                {% if field.type == "textarea" %}
+                    <textarea
+                        class="form-control mt-2"
+                        name="{{ field.code }}"
+                        rows="3"
+                        {% if field.source == "db" %}disabled{% endif %}
+                    >{{ field.value }}</textarea>
+                {% else %}
+                    <input
+                        type="text"
+                        class="form-control mt-2"
+                        name="{{ field.code }}"
+                        value="{{ field.value }}"
+                        {% if field.source == "db" %}disabled{% endif %}
+                    >
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Скрытые поля -->
+    <input type="hidden" name="program" value="{{ program_id }}">
+    <input type="hidden" name="model" value="{{ model_id }}">
+    <input type="hidden" name="chain" value="{{ chain_id }}">
+
+
+</form>
