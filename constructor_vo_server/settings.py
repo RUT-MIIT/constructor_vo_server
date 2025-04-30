@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'programs',
     'ai',
     'export',
+    'llm',
 ]
 
 SITE_ID = 1
@@ -247,7 +248,10 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL')
 
-
+AUTHENTICATION_BACKENDS = [
+    'users.backend.EmailBackend',  # путь до нашего нового бэкенда
+    'django.contrib.auth.backends.ModelBackend',  # стандартный оставляем тоже
+]
 
 
 # Конфигурация статических файлов (опционально, если нужно хранить статические файлы на S3)
