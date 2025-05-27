@@ -1,0 +1,75 @@
+{% load custom_filters %}
+
+{% for step in result %}
+    <h5 class="mt-4">🔹 Шаг {{ step.step_number }}: {{ step.step_name }}</h5>
+
+    {% with res=step.result %}
+
+        {# 📘 Основные параметры программы #}
+        {% if res.program_parameters %}
+            <h6 class="mt-3">📘 Основные параметры программы:</h6>
+            <ul class="list-group mb-3">
+                {% for key, val in res.program_parameters.items %}
+                    <li class="list-group-item">
+                        <strong>{{ key|underscore_to_space|capfirst }}:</strong>
+                        {% if val|is_list %}
+                            <ul class="mt-1 mb-0">
+                                {% for item in val %}
+                                    <li>• {{ item }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            {{ val }}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {# 🛠 Продукты #}
+        {% if res.identified_products %}
+            <h6 class="mt-3">🛠 Выявленные продукты:</h6>
+            <ul class="list-group mb-3">
+                {% for p in res.identified_products %}
+                    <li class="list-group-item">
+                        <strong>▶️ {{ p.product_name }}</strong><br>
+                        <em>📄 Описание:</em> {{ p.product_description }}<br>
+                        <em>🤔 Обоснование:</em> {{ p.reasoning }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {# 📚 Сопоставление с НСИ #}
+        {% if res.product_nsi_mapping %}
+            <h6 class="mt-3">📚 Сопоставление с НСИ:</h6>
+            {% for mapping in res.product_nsi_mapping %}
+                <div class="mb-2">
+                    <strong>▶️ {{ mapping.product_name }}</strong>
+                    <ul class="list-group">
+                        {% for doc in mapping.relevant_nsi %}
+                            <li class="list-group-item">
+                                <strong>{{ doc.document_title }}</strong>
+                                ({{ doc.organization }}, {{ doc.year }}, уровень: {{ doc.level }})<br>
+                                <em>{{ doc.purpose }}</em>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {# 🧠 Концепция программы #}
+        {% if res.program_concept_summary %}
+            <h6 class="mt-3">🧠 Концепция образовательной программы:</h6>
+            <ul class="list-group">
+                {% for key, val in res.program_concept_summary.items %}
+                    <li class="list-group-item">
+                        <strong>{{ key|underscore_to_space|capfirst }}:</strong> {{ val }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+    {% endwith %}
+{% endfor %}

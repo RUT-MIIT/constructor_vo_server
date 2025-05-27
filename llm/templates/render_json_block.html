@@ -1,0 +1,18 @@
+<ul class="list-group mb-2" style="margin-left: {{ level|add:"1" }}em;">
+    {% for key, value in data.items %}
+        <li class="list-group-item">
+            <strong>{{ key }}:</strong>
+            {% if value is iterable and value.items %}
+                {% render_json value level|add:1 %}
+            {% elif value is iterable and not value|string %}
+                <ul class="mt-2">
+                    {% for item in value %}
+                        <li>• {{ item }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                {{ value }}
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>

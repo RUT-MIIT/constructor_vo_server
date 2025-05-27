@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}🧠 Цепочки{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🧠 Список цепочек</h2>
+        <a href="{% url 'chain_create' %}" class="btn btn-success">➕ Создать новую цепочку</a>
+    </div>
+
+    <table class="table table-hover shadow-sm rounded">
+        <thead class="table-dark">
+            <tr>
+                <th>Название</th>
+                <th>Автор</th>
+                <th style="width: 200px;">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for chain in chains %}
+                <tr>
+                    <td>{{ chain.name }}</td>
+                    <td>{{ chain.author|default:"???" }}</td>
+                    <td>
+                        <div class="btn-group w-100" role="group">
+                            <a href="{% url 'chain_detail' chain.id %}" class="btn btn-outline-primary btn-sm">👁️</a>
+                            {% if user == chain.author %}
+                                <a href="{% url 'chain_edit' chain.id %}" class="btn btn-outline-secondary btn-sm">✏️</a>
+                                <a href="{% url 'chain_delete' chain.id %}" class="btn btn-outline-danger">🗑️</a>
+                            {% else %}
+                                <button class="btn btn-outline-secondary btn-sm" disabled>✏️</button>
+                                <button class="btn btn-outline-danger btn-sm" disabled>🗑️</button>
+                            {% endif %}
+                            <a href="{% url 'chain_clone' chain.id %}" class="btn btn-outline-info btn-sm">⧉</a>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

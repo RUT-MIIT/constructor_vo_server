@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}✏️ Редактирование "{{ chain.name }}"{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>✏️ Редактирование цепочки: {{ chain.name }}</h2>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        <button type="submit" class="btn btn-success">💾 Сохранить</button>
+        <a href="{% url 'chain_detail' chain.id %}" class="btn btn-secondary">❌ Отмена</a>
+    </form>
+</div>
+{% endblock %}

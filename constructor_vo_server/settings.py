@@ -259,3 +259,5 @@ AUTHENTICATION_BACKENDS = [
 # MEDIA_URL = f'https://{AWS_S3_ENDPOINT_URL}/media/'
 
 
+USE_TZ = True
+TIME_ZONE = 'Europe/Moscow'

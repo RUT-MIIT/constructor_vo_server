@@ -1,0 +1,117 @@
+{% load custom_filters %}
+
+{% for step in result %}
+    <h5 class="mt-4">🔹 Шаг {{ step.step_number }}: {{ step.step_name }}</h5>
+    {% with res=step.result %}
+
+        {% if res.key_activity_types %}
+            <h6 class="mt-3">🔧 Ключевые виды деятельности:</h6>
+            <ul class="list-group mb-3">
+                {% for item in res.key_activity_types %}
+                    <li class="list-group-item">{{ item }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if res.competency_requirements_summary %}
+            <h6 class="mt-3">🎓 Компетенции и требования:</h6>
+            <p>{{ res.competency_requirements_summary }}</p>
+        {% endif %}
+
+        {% if res.market_analysis_narrative %}
+            <h6 class="mt-3">📈 Анализ рынка труда:</h6>
+            <p>{{ res.market_analysis_narrative }}</p>
+        {% endif %}
+
+        {% if res.program_concept_summary %}
+            <h6 class="mt-3">🧠 Концепция образовательной программы:</h6>
+            <ul class="list-group mb-3">
+                {% for key, val in res.program_concept_summary.items %}
+                    <li class="list-group-item">
+                        <strong>{{ key|underscore_to_space|capfirst }}:</strong> {{ val }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if res.products %}
+            <h6 class="mt-3">🧩 Продукты:</h6>
+            <ul class="list-group mb-3">
+                {% for product in res.products %}
+                    <li class="list-group-item">
+                        <strong>{{ product.product_name }}</strong><br>
+                        <em>🤔 Обоснование:</em> {{ product.justification }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if res.product_lifecycles %}
+            <h6 class="mt-3">🔄 Жизненные циклы продуктов:</h6>
+            {% for pl in res.product_lifecycles %}
+                <div class="mb-3">
+                    <strong>📦 {{ pl.product_name }}</strong> (модель: {{ pl.lifecycle_model_used }})<br>
+                    <em>{{ pl.model_justification }}</em>
+                    <ul class="mt-2">
+                        {% for stage in pl.stages %}
+                            <li>
+                                <strong>{{ stage.stage_name }}</strong>: {{ stage.annotation }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% if res.process_decomposition %}
+            <h6 class="mt-3">🔬 Декомпозиция процессов:</h6>
+            <ul class="list-group mb-3">
+                {% for p in res.process_decomposition %}
+                    <li class="list-group-item">
+                        <strong>{{ p.product_name }} / {{ p.stage_name }}</strong><br>
+                        <em>{{ p.process_name }}</em>: {{ p.process_annotation }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if res.activity_results %}
+            <h6 class="mt-3">📋 Результаты деятельности:</h6>
+            <ul class="list-group mb-3">
+                {% for a in res.activity_results %}
+                    <li class="list-group-item">
+                        <strong>{{ a.product_name }} / {{ a.stage_name }}</strong><br>
+                        <em>{{ a.process_name }}</em>: {{ a.result_description }}<br>
+                        📄 Норматив: {{ a.normative_document_link }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if res.normative_documents_list %}
+            <h6 class="mt-3">📚 Нормативные документы:</h6>
+            <ul class="list-group mb-3">
+                {% for doc in res.normative_documents_list %}
+                    <li class="list-group-item">
+                        <strong>{{ doc.document_title }}</strong><br>
+                        {{ doc.organization }} — {{ doc.approval_date }}<br>
+                        Уровень: {{ doc.level }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if res.relevance_analysis %}
+            <h6 class="mt-3">🔎 Анализ релевантности НСИ:</h6>
+            <ul class="list-group mb-3">
+                {% for r in res.relevance_analysis %}
+                    <li class="list-group-item">
+                        <strong>{{ r.document_title }}</strong><br>
+                        {{ r.details_relevance_assessment }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+    {% endwith %}
+{% endfor %}

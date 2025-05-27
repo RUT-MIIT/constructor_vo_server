@@ -28,8 +28,21 @@ urlpatterns = [
 
     path('login/', llm_views.login_view, name='login'),
     path('home/', llm_views.home_view, name='home'),
+    path('chains/', llm_views.chains_view, name='chain_list'),
+    path('chain/<int:pk>/', llm_views.chain_detail, name='chain_detail'),
+    path('chain/<int:pk>/edit/', llm_views.chain_edit, name='chain_edit'),
+    path('chain/<int:pk>/clone/', llm_views.chain_clone, name='chain_clone'),
+
+    path('chain/<int:pk>/delete/', llm_views.chain_delete, name='chain_delete'),
+    path('chain/new/', llm_views.chain_create, name='chain_create'),
+
+    path('results/', llm_views.results_list, name='results_list'),
+    path('results/<int:run_id>/', llm_views.result_detail, name='result_detail'),
 
     path('load-params/', llm_views.load_chain_inputs, name='load_chain_inputs'),
     path('generate-result/', llm_views.generate_result, name='generate_result'),
+
+    path('load_run_result/', llm_views.load_run_result, name='load_run_result'),
+
 
 ]

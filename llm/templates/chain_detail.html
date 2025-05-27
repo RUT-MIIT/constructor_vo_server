@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}👁️ {{ chain.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>👁️ Просмотр цепочки: {{ chain.name }}</h2>
+    <p><strong>Автор:</strong> {{ chain.author }}</p>
+
+    {% if chain.use_results %}
+        <p><strong>Использует результаты:</strong>
+            <a href="{% url 'chain_detail' chain.use_results.id %}">
+                {{ chain.use_results.name }}
+            </a>
+        </p>
+    {% endif %}
+
+    <hr />
+
+    {% if chain.prompt %}
+        <h4>📝 Промпт</h4>
+        <pre class="bg-light p-3 border rounded">{{ chain.prompt }}</pre>
+    {% endif %}
+
+    {% if chain.inputs %}
+        <h4 class="mt-4">📥 Входные данные (JSON)</h4>
+        <pre class="bg-light p-3 border rounded">
+{{ chain.inputs|pprint }}
+        </pre>
+    {% endif %}
+
+    {% if chain.result_template %}
+        <h4 class="mt-4">⚙️ Шаблон результата</h4>
+        <pre class="bg-light p-3 border rounded">{{ chain.result_template }}</pre>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{% url 'chain_list' %}" class="btn btn-secondary">⬅️ Назад к списку</a>
+        {% if user == chain.author %}
+            <a href="{% url 'chain_edit' chain.id %}" class="btn btn-primary">✏️ Редактировать</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

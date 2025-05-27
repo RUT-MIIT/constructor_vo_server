@@ -4,18 +4,18 @@
 
 {% block content %}
     <div class="container-fluid mt-4">
-        <!-- Верхняя часть: параметры -->
+        <!-- Верхний блок  -->
         <div class="row mb-4">
             <div class="col">
                 <div class="p-3 border bg-light">
                     <h4>Параметры</h4>
 
-                    <form>
+                    <form id="params-form">
                         <div class="row">
-                            <!-- Выбор цепочки -->
+                            <!-- Цепочка -->
                             <div class="col-md-4 mb-3">
                                 <label for="chainSelect" class="form-label">Выберите цепочку</label>
-                                <select class="form-select" id="chainSelect" name="chain">
+                                <select class="form-select" id="chainSelect" name="chain" required>
                                     <option selected disabled>Выберите...</option>
                                     {% for chain in chains %}
                                         <option value="{{ chain.id }}">{{ chain.name }}</option>
@@ -23,10 +23,10 @@
                                 </select>
                             </div>
 
-                            <!-- Выбор модели -->
+                            <!-- Модель -->
                             <div class="col-md-4 mb-3">
                                 <label for="modelSelect" class="form-label">Выберите модель</label>
-                                <select class="form-select" id="modelSelect" name="model">
+                                <select class="form-select" id="modelSelect" name="model" required>
                                     <option selected disabled>Выберите...</option>
                                     {% for model in models %}
                                         <option value="{{ model.id }}">{{ model.name }}</option>
@@ -34,10 +34,10 @@
                                 </select>
                             </div>
 
-                            <!-- Выбор программы -->
+                            <!-- Программа -->
                             <div class="col-md-4 mb-3">
                                 <label for="programSelect" class="form-label">Выберите программу</label>
-                                <select class="form-select" id="programSelect" name="program">
+                                <select class="form-select" id="programSelect" name="program" required>
                                     <option selected disabled>Выберите...</option>
                                     {% for program in programs %}
                                         <option value="{{ program.id }}">{{ program.profile }}</option>
@@ -45,21 +45,25 @@
                                 </select>
                             </div>
                         </div>
-                        <div
-                                id="auto-load-trigger"
+
+                        <div class="d-flex justify-content-end">
+                            <button
+                                class="btn btn-primary"
+                                type="button"
+                                id="load-button"
                                 hx-get="{% url 'load_chain_inputs' %}"
                                 hx-target="#input-params"
                                 hx-swap="innerHTML"
-                                hx-include="[name='chain'], [name='program'], [name='model']"
-                                hx-trigger="refresh"
-                                style="display: none;">
+                                hx-include="#params-form">
+                                🔄 Загрузить параметры
+                            </button>
                         </div>
-
                     </form>
-
                 </div>
             </div>
         </div>
+
+
 
         <!-- Нижняя часть: деление на 2 колонки -->
         <div class="row">
@@ -90,24 +94,51 @@
 
 
 {% block scripts %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const chainSelect = document.getElementById('chainSelect');
-            const modelSelect = document.getElementById('modelSelect');
-            const programSelect = document.getElementById('programSelect');
-            const autoTrigger = document.getElementById('auto-load-trigger');
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Удаляем устаревшее поведение
+    // -- checkAndTrigger больше не нужен, т.к. теперь ручная кнопка
 
-            function checkAndTrigger() {
-                if (chainSelect.value && modelSelect.value && programSelect.value) {
-                    // Запустить HTMX-запрос вручную
-                    htmx.trigger(autoTrigger, 'refresh');
-                }
+    // 🔁 Обработка кнопки генерации
+    document.body.addEventListener('htmx:beforeRequest', function (event) {
+        const button = document.getElementById('generate-button');
+        if (button && event.target.closest('form#inputs-form')) {
+            button.disabled = true;
+            button.innerText = "Генерация...";
+            const resultBlock = document.getElementById('result-block');
+            if (resultBlock) {
+                resultBlock.innerHTML = '<div id="result-placeholder" class="text-muted">⏳ Ожидаем результат...</div>';
             }
+        }
+    });
 
-            chainSelect.addEventListener('change', checkAndTrigger);
-            modelSelect.addEventListener('change', checkAndTrigger);
-            programSelect.addEventListener('change', checkAndTrigger);
-        });
-    </script>
+    document.body.addEventListener('htmx:afterRequest', function (event) {
+        const button = document.getElementById('generate-button');
+        if (button && event.target.closest('form#inputs-form')) {
+            button.disabled = false;
+            button.innerText = "Сгенерировать результат";
+        }
+    });
+
+    // Инициализация runSelect при загрузке input-params
+    function initRunSelectTrigger() {
+        const runSelect = document.getElementById('runSelect');
+        const loadButton = document.getElementById('load-run-button');
+        if (runSelect && loadButton) {
+            loadButton.disabled = true;
+            runSelect.addEventListener('change', function () {
+                loadButton.disabled = !runSelect.value;
+            });
+        }
+    }
+
+    // При подгрузке формы — инициализировать логику
+    document.body.addEventListener('htmx:afterSwap', function (e) {
+        if (e.target.id === "input-params") {
+            initRunSelectTrigger();
+        }
+    });
+});
+</script>
 
 {% endblock %}

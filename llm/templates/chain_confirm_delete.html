@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}🗑️ Удаление "{{ chain.name }}"{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Вы уверены, что хотите удалить цепочку?</h2>
+    <p><strong>{{ chain.name }}</strong></p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">✅ Удалить</button>
+        <a href="{% url 'chain_list' %}" class="btn btn-secondary">❌ Отмена</a>
+    </form>
+</div>
+{% endblock %}

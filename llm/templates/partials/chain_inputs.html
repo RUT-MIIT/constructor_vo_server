@@ -1,46 +1,97 @@
-<form id="inputs-form" method="POST">
-    {% csrf_token %}
-    <div class="mb-3 d-flex justify-content-start">
-        <button
-            class="btn btn-success"
-            type="submit"
-            hx-post="{% url 'generate_result' %}"
-            hx-target="#result-block"
-            hx-swap="innerHTML"
-            hx-include="#inputs-form">
-            Сгенерировать результат
-        </button>
-    </div>
+{% if use_results_from_chain %}
+    <form id="run-result-form">
+        <div class="mb-3">
+            <label for="runSelect" class="form-label">Выберите запуск цепочки "{{ use_results_from_chain.name }}"</label>
+            <select class="form-select" id="runSelect" name="run_id">
+                <option value="" disabled selected>Выберите запуск...</option>
+                {% for run in result_runs %}
+                    <option value="{{ run.id }}">
+                        {% load tz %}
+                        {{ run.created_at|localtime|date:"d.m.Y H:i" }} — {{ run.user }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
 
-    <div class="list-group">
-        {% for field in inputs %}
-            <div class="list-group-item">
-                <strong>{{ field.name }}</strong><br>
+        <!-- Кнопка Загрузить -->
+        <div class="mb-3 d-flex justify-content-end">
+            <button
+                type="button"
+                class="btn btn-primary"
+                id="load-run-button"
+                disabled
+                hx-get="{% url 'load_run_result' %}"
+                hx-target="#chain_run_result_block"
+                hx-swap="innerHTML"
+                hx-include="#run-result-form">
+                🔁 Загрузить результат запуска
+            </button>
+        </div>
+        <div id="chain_run_result_block"></div>
+        <!-- Скрытые поля -->
+        <input type="hidden" name="program" value="{{ program_id }}">
+        <input type="hidden" name="model" value="{{ model_id }}">
+        <input type="hidden" name="chain" value="{{ chain_id }}">
+    </form>
 
-                {% if field.type == "textarea" %}
-                    <textarea
-                        class="form-control mt-2"
-                        name="{{ field.code }}"
-                        rows="3"
-                        {% if field.source == "db" %}disabled{% endif %}
-                    >{{ field.value }}</textarea>
-                {% else %}
-                    <input
-                        type="text"
-                        class="form-control mt-2"
-                        name="{{ field.code }}"
-                        value="{{ field.value }}"
-                        {% if field.source == "db" %}disabled{% endif %}
-                    >
-                {% endif %}
-            </div>
-        {% endfor %}
-    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const runSelect = document.getElementById('runSelect');
+        const loadButton = document.getElementById('load-run-button');
 
-    <!-- Скрытые поля -->
-    <input type="hidden" name="program" value="{{ program_id }}">
-    <input type="hidden" name="model" value="{{ model_id }}">
-    <input type="hidden" name="chain" value="{{ chain_id }}">
+        runSelect.addEventListener('change', function () {
+            if (runSelect.value) {
+                loadButton.disabled = false;
+            } else {
+                loadButton.disabled = true;
+            }
+        });
+    });
+    </script>
+{% else %}
+    <form id="inputs-form" method="POST">
+        {% csrf_token %}
+        <div class="mb-3 d-flex justify-content-start">
+            <button
+                id="generate-button"
+                class="btn btn-success"
+                type="submit"
+                hx-post="{% url 'generate_result' %}"
+                hx-target="#result-block"
+                hx-swap="innerHTML"
+                hx-include="#inputs-form">
+                Сгенерировать результат
+            </button>
+        </div>
 
+        <div class="list-group">
+            {% for field in inputs %}
+                <div class="list-group-item">
+                    <strong>{{ field.name }}</strong><br>
 
-</form>
+                    {% if field.type == "textarea" %}
+                        <textarea
+                            class="form-control mt-2"
+                            name="{{ field.code }}"
+                            rows="8"
+                            {% if field.source == "db" %}readonly{% endif %}
+                        >{{ field.value }}</textarea>
+                    {% else %}
+                        <input
+                            type="text"
+                            class="form-control mt-2"
+                            name="{{ field.code }}"
+                            value="{{ field.value }}"
+                            {% if field.source == "db" %}readonly{% endif %}
+                        >
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Скрытые поля -->
+        <input type="hidden" name="program" value="{{ program_id }}">
+        <input type="hidden" name="model" value="{{ model_id }}">
+        <input type="hidden" name="chain" value="{{ chain_id }}">
+    </form>
+{% endif %}
